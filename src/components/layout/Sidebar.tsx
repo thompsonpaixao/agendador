@@ -44,7 +44,7 @@ export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
   const currentProfile = accounts.find((a) => a.id === profileId);
 
   const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
+    if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
   };
 
@@ -68,7 +68,7 @@ export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
         {/* Topo: Logo & Botão de Recolher */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80 shrink-0">
           <Link
-            href="/"
+            href="/dashboard"
             onClick={onCloseMobile}
             className="flex items-center gap-3 overflow-hidden"
           >
@@ -193,7 +193,7 @@ export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
 
               {/* Retorno ao Dashboard Geral */}
               <Link
-                href="/"
+                href="/dashboard"
                 onClick={onCloseMobile}
                 className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-slate-200 transition-all"
                 title="Dashboard Geral"
@@ -207,10 +207,10 @@ export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
             <>
               {/* Dashboard Geral */}
               <Link
-                href="/"
+                href="/dashboard"
                 onClick={onCloseMobile}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  isActive("/") && pathname === "/"
+                  isActive("/dashboard")
                     ? "bg-indigo-600 text-white shadow-xs"
                     : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
                 }`}

@@ -144,7 +144,7 @@ export function GlobalAccountSelector() {
                   onClick={() => {
                     setSelectedAccountId("all");
                     setIsOpen(false);
-                    router.push("/");
+                    router.push("/dashboard");
                   }}
                   className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
                     selectedAccountId === "all"

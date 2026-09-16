@@ -1,7 +1,16 @@
 export type AccountStatus = "connected" | "expired" | "error" | "paused";
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  name?: string;
+  avatarUrl?: string;
+  createdAt?: string;
+}
+
 export interface Account {
   id: string;
+  userId?: string;
   username: string;
   name: string;
   profilePicture: string;
@@ -42,6 +51,7 @@ export type PostStatus =
 
 export interface MediaItem {
   id: string;
+  userId?: string;
   accountId: string;
   name: string;
   url: string;
@@ -57,6 +67,7 @@ export interface MediaItem {
 
 export interface ReelQueue {
   id: string;
+  userId?: string;
   accountId: string;
   accountUsername: string;
   accountAvatar: string;
@@ -90,6 +101,7 @@ export interface CarouselSlide {
 
 export interface CarouselPost {
   id: string;
+  userId?: string;
   accountId: string;
   title: string;
   position: number;
@@ -102,6 +114,7 @@ export interface CarouselPost {
 
 export interface CarouselQueue {
   id: string;
+  userId?: string;
   accountId: string;
   accountUsername: string;
   accountAvatar: string;
@@ -129,6 +142,7 @@ export interface PostHistoryLog {
 
 export interface ScheduledPost {
   id: string;
+  userId?: string;
   accountId: string;
   accountUsername: string;
   accountAvatar: string;
@@ -146,6 +160,7 @@ export interface ScheduledPost {
 
 export interface PublishedPost {
   id: string;
+  userId?: string;
   accountId: string;
   accountUsername: string;
   accountAvatar: string;
@@ -172,6 +187,7 @@ export type ErrorCategory = "account" | "token" | "publish" | "media" | "api";
 
 export interface ErrorLog {
   id: string;
+  userId?: string;
   timestamp: string;
   accountId: string;
   accountUsername: string;
@@ -192,6 +208,7 @@ export interface ErrorLog {
 
 export interface NotificationItem {
   id: string;
+  userId?: string;
   timestamp: string;
   type:
     | "publish_success"

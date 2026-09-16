@@ -1,12 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { ConnectAccountModal } from "@/components/accounts/ConnectAccountModal";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Rotas públicas que não devem exibir a Sidebar nem o Header do SaaS
+  const isPublicRoute =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/cadastro" ||
+    pathname.startsWith("/auth");
+
+  if (isPublicRoute) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 antialiased flex flex-col">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
