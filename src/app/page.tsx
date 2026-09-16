@@ -74,7 +74,7 @@ export default function LandingPage() {
           {/* Badge Informativa */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-100/80 text-indigo-700 text-xs font-semibold mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
             <ShieldCheck className="w-4 h-4 text-indigo-600" />
-            <span>Plataforma SaaS Profissional para Instagram</span>
+            <span>Automação e agendamento de conteúdo para Instagram</span>
           </div>
 
           {/* Título Principal */}
@@ -109,7 +109,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Visual Showcase do SaaS */}
+          {/* Visual Showcase da Plataforma */}
           <div className="mt-16 rounded-2xl border border-slate-200/80 bg-white p-2 sm:p-3 shadow-xl max-w-5xl mx-auto">
             <div className="rounded-xl bg-slate-900 text-slate-100 p-6 sm:p-8 text-left border border-slate-800">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-800 gap-4">
@@ -397,4 +397,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
 

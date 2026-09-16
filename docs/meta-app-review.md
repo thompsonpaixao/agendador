@@ -26,7 +26,7 @@ Este documento contém o checklist oficial, instruções de submissão e roteiro
 
 ### Permissão 1: `instagram_business_basic`
 - **Por que o aplicativo precisa dessa permissão?**
-  > "O AgendadorAuto é uma plataforma SaaS para produtores de conteúdo e agências. Esta permissão é necessária para identificar a conta do Instagram conectada pelo usuário, exibindo na interface o identificador exclusivo (ID), o nome de usuário (@username), o nome de exibição e a foto de perfil, permitindo que o usuário organize e selecione para qual perfil está criando ou agendando publicações."
+  > "O AgendadorAuto é uma plataforma para produtores de conteúdo e agências. Esta permissão é necessária para identificar a conta do Instagram conectada pelo usuário, exibindo na interface o identificador exclusivo (ID), o nome de usuário (@username), o nome de exibição e a foto de perfil, permitindo que o usuário organize e selecione para qual perfil está criando ou agendando publicações."
 - **Recursos utilizados:** `GET /me?fields=id,username,name,account_type,profile_picture_url,followers_count`
 
 ### Permissão 2: `instagram_business_content_publish`
@@ -107,3 +107,4 @@ Agradecemos pela revisão!
 - **Nunca utilize web scraping ou bibliotecas não oficiais:** O AgendadorAuto opera 100% sob a Graph API oficial.
 - **Nenhum dado mock no fluxo do revisor:** As rotas `/api/instagram/auth` e `/api/instagram/callback` realizam a comunicação ao vivo com os servidores da Meta.
 - **Segurança de credenciais:** O `META_APP_SECRET` permanece exclusivamente em variáveis de ambiente protegidas no servidor.
+

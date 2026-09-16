@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/context/ToastContext";
@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AgendadorAuto - Gestão e Agendamento para Instagram",
   description:
-    "Painel SaaS completo para gerenciamento, automação e agendamento de Reels e Carrosséis para múltiplas contas do Instagram com o AgendadorAuto.",
+    "Painel completo para automação e agendamento de Reels e Carrosséis para múltiplas contas do Instagram com o AgendadorAuto.",
 };
 
 export default function RootLayout({
@@ -44,3 +44,4 @@ export default function RootLayout({
     </html>
   );
 }
+

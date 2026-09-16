@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
@@ -163,12 +163,13 @@ function CadastroContent() {
             </button>
           </div>
 
-          {/* Divisor Visual */}
-          <div className="relative flex items-center justify-center">
-            <div className="border-t border-slate-200 w-full" />
-            <span className="bg-white px-3 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+          {/* Divisor Visual perfeitamente centralizado vertical e horizontalmente */}
+          <div className="relative flex items-center justify-center my-6">
+            <div className="flex-1 border-t border-slate-200" />
+            <span className="shrink-0 px-3 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-center">
               ou cadastre-se com e-mail
             </span>
+            <div className="flex-1 border-t border-slate-200" />
           </div>
 
           {/* Formulário com Nome, E-mail, Senha e Confirmar Senha */}
@@ -308,3 +309,4 @@ export default function CadastroPage() {
     </Suspense>
   );
 }
+

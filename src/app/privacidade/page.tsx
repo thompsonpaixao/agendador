@@ -70,7 +70,7 @@ export default function PrivacidadePage() {
             <span>1. Visão Geral e Compromisso de Privacidade</span>
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            O <strong>AgendadorAuto</strong> é uma plataforma de software como serviço (SaaS) desenvolvida para gerenciar, agendar e publicar conteúdos (Reels e Carrosséis) em contas comerciais e de criadores de conteúdo do Instagram, utilizando exclusivamente as APIs oficiais da Meta Platform.
+            O <strong>AgendadorAuto</strong> é uma plataforma desenvolvida para gerenciar, agendar e publicar conteúdos (Reels e Carrosséis) em contas comerciais e de criadores de conteúdo do Instagram, utilizando exclusivamente as APIs oficiais da Meta Platform.
           </p>
           <p className="text-sm text-slate-600 leading-relaxed">
             Esta Política de Privacidade estabelece como coletamos, utilizamos, armazenamos, tratamos e protegemos os dados pessoais de nossos usuários, bem como as informações recebidas por meio de integrações de terceiros (Google OAuth e Meta Graph API), em total observância à Lei Geral de Proteção de Dados (Lei nº 13.709/2018 - LGPD), ao Regulamento Geral de Proteção de Dados (GDPR) e aos Termos de Plataforma da Meta.
@@ -267,3 +267,4 @@ export default function PrivacidadePage() {
     </div>
   );
 }
+

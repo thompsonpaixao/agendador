@@ -188,7 +188,7 @@ export default function ConfiguracoesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="text-xs font-semibold text-slate-700 block mb-1">
-                Nome da Instância SaaS
+                Nome da Aplicação
               </label>
               <input
                 type="text"
@@ -607,3 +607,4 @@ export default function ConfiguracoesPage() {
     </div>
   );
 }
+

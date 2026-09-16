@@ -66,7 +66,7 @@ export default function TermosPage() {
             1. Descrição do Serviço
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            O <strong>AgendadorAuto</strong> é um software como serviço (SaaS) projetado para otimizar o fluxo de trabalho de produtores de conteúdo, agências e gestores de redes sociais. A plataforma oferece ferramentas para organização por perfis, fila de Reels, montagem sequencial de Carrosséis, definição de cronogramas de publicação com variação aleatória anti-detecção e acompanhamento de status de postagem.
+            O <strong>AgendadorAuto</strong> é uma plataforma projetada para otimizar o fluxo de trabalho de produtores de conteúdo, agências e gestores de redes sociais. A plataforma oferece ferramentas para organização por perfis, fila de Reels, montagem sequencial de Carrosséis, definição de cronogramas de publicação com variação aleatória anti-detecção e acompanhamento de status de postagem.
           </p>
           <p className="text-sm text-slate-600 leading-relaxed">
             Todas as ações de publicação no Instagram são realizadas em estrita conformidade com os protocolos da Meta Platform através da oficial <em>Instagram Content Publishing API</em>.
@@ -131,7 +131,7 @@ export default function TermosPage() {
             6. Propriedade Intelectual
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Todos os direitos sobre a marca AgendadorAuto, logotipos textuais, interface de usuário, códigos-fonte, algoritmos de agendamento e arquitetura do software pertencem exclusivamente aos seus desenvolvedores titulares. O uso do SaaS concede ao Usuário uma licença limitada, não exclusiva e revogável de acesso às ferramentas contratadas.
+            Todos os direitos sobre a marca AgendadorAuto, logotipos textuais, interface de usuário, códigos-fonte, algoritmos de agendamento e arquitetura do software pertencem exclusivamente aos seus desenvolvedores titulares. O uso da plataforma concede ao Usuário uma licença limitada, não exclusiva e revogável de acesso às ferramentas contratadas.
           </p>
         </section>
 
@@ -208,3 +208,4 @@ export default function TermosPage() {
     </div>
   );
 }
+

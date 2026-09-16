@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -10,7 +10,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Rotas públicas que não devem exibir a Sidebar nem o Header do SaaS
+  // Rotas públicas que não devem exibir a Sidebar nem o Header
   const isPublicRoute =
     pathname === "/" ||
     pathname === "/login" ||
@@ -49,3 +49,4 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
