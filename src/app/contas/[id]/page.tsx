@@ -53,7 +53,7 @@ function AccountDetailContent({ params }: PageProps) {
 
   const handleTabChange = (tabId: string) => {
     setLocalTab(tabId);
-    router.replace(`/contas/${accountId}?tab=${tabId}`, { scroll: false });
+    router.push(`/contas/${accountId}?tab=${tabId}`, { scroll: false });
   };
 
   if (!account) {

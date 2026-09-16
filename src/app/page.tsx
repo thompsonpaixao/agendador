@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import Link from "next/link";
-import { InstagramIcon } from "@/components/icons/InstagramIcon";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import {
   Users,
   UploadCloud,
@@ -23,19 +23,9 @@ export default function LandingPage() {
       {/* HEADER PÚBLICO */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          {/* Logo e Nome */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shadow-sm shadow-rose-500/25 group-hover:scale-105 transition-transform">
-              <InstagramIcon className="w-6 h-6 fill-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-extrabold tracking-tight text-slate-900 leading-none">
-                Agendador
-              </span>
-              <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5">
-                Instagram SaaS
-              </span>
-            </div>
+          {/* Logo da Marca */}
+          <Link href="/" className="inline-flex items-center py-1">
+            <BrandLogo size="xl" />
           </Link>
 
           {/* Navegação Central */}
@@ -128,7 +118,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-amber-500" />
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
                   <span className="text-xs font-mono text-slate-400 ml-2">
-                    painel.agendador.app
+                    painel.agendadorauto.app
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -358,7 +348,7 @@ export default function LandingPage() {
                   href="/login"
                   className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold text-center transition-colors"
                 >
-                  Entrar no Agendador
+                  Entrar no AgendadorAuto
                 </Link>
                 <Link
                   href="/cadastro"
@@ -375,20 +365,26 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="border-t border-slate-200/80 bg-slate-50 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white">
-              <InstagramIcon className="w-4 h-4 fill-white" />
-            </div>
-            <span className="text-sm font-bold text-slate-800">Agendador</span>
+          <div className="flex items-center gap-3">
+            <BrandLogo size="sm" />
             <span className="text-xs text-slate-400">
               © {new Date().getFullYear()} — Todos os direitos reservados.
             </span>
           </div>
 
-          <div className="flex items-center gap-6 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500">
             <a href="#recursos" className="hover:text-slate-800 transition-colors">
               Recursos
             </a>
+            <Link href="/privacidade" className="hover:text-indigo-600 transition-colors font-medium">
+              Privacidade
+            </Link>
+            <Link href="/termos" className="hover:text-indigo-600 transition-colors font-medium">
+              Termos
+            </Link>
+            <Link href="/exclusao-de-dados" className="hover:text-indigo-600 transition-colors font-medium">
+              Exclusão de dados
+            </Link>
             <Link href="/login" className="hover:text-slate-800 transition-colors">
               Entrar
             </Link>
@@ -401,3 +397,4 @@ export default function LandingPage() {
     </div>
   );
 }
+

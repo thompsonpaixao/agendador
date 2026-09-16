@@ -88,6 +88,15 @@ export function ProfileHeader({ account, activeTabTitle }: ProfileHeaderProps) {
                 @{account.username}
               </h1>
               <StatusBadge status={account.status} />
+              <span
+                className={`text-xs font-semibold px-2.5 py-0.5 rounded-lg border ${
+                  account.connectionMode === "external"
+                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                }`}
+              >
+                Modo: {account.connectionMode === "external" ? "Externo" : "Desenvolvimento"}
+              </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{account.name}</p>
           </div>

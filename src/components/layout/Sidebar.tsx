@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppState } from "@/context/AppStateContext";
-import { InstagramIcon } from "@/components/icons/InstagramIcon";
+import { useAuth } from "@/context/AuthContext";
+import { ServiceStatus } from "@/types";
 import {
   LayoutDashboard,
   Users,
@@ -22,20 +23,69 @@ import {
   User,
   CheckCircle,
   ArrowLeft,
+  LogOut,
+  ChevronUp,
 } from "lucide-react";
 import Image from "next/image";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 interface SidebarProps {
   isMobileOpen: boolean;
   onCloseMobile: () => void;
 }
 
+function getServiceStatusDisplay(status: ServiceStatus): { label: string; textClass: string; dotClass: string } {
+  switch (status) {
+    case "connected":
+      return {
+        label: "Conectado",
+        textClass: "text-emerald-400",
+        dotClass: "bg-emerald-500",
+      };
+    case "reconnect_required":
+      return {
+        label: "Reconexão necessária",
+        textClass: "text-amber-300",
+        dotClass: "bg-amber-400",
+      };
+    case "error":
+      return {
+        label: "Erro",
+        textClass: "text-rose-400",
+        dotClass: "bg-rose-500",
+      };
+    case "not_configured":
+    default:
+      return {
+        label: "Não configurado",
+        textClass: "text-amber-400/90",
+        dotClass: "bg-amber-500",
+      };
+  }
+}
+
 export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
 
   const { accounts, errors, unreadNotificationsCount, systemStatus, setIsConnectModalOpen } = useAppState();
+  const { user, signOut } = useAuth();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha menu de usuário ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    if (isUserMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isUserMenuOpen]);
 
   const criticalErrors = errors.filter((e) => e.status === "pending").length;
 
@@ -70,21 +120,16 @@ export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
           <Link
             href="/dashboard"
             onClick={onCloseMobile}
-            className="flex items-center gap-3 overflow-hidden"
+            className={`flex items-center overflow-hidden transition-all ${
+              isCollapsed ? "justify-center w-full" : "px-1"
+            }`}
+            title="AgendadorAuto"
           >
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center shrink-0 shadow-md shadow-rose-500/20">
-              <InstagramIcon className="h-5 w-5 text-white" />
-            </div>
-            {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className="font-bold text-white tracking-tight text-base leading-tight">
-                  Agendador
-                </span>
-                <span className="text-[10px] text-slate-400 font-medium">
-                  SaaS Instagram
-                </span>
-              </div>
-            )}
+            <BrandLogo
+              theme="light-text"
+              size={isCollapsed ? "md" : "lg"}
+              collapsed={isCollapsed}
+            />
           </Link>
 
           <button
@@ -359,54 +404,161 @@ export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
           )}
         </nav>
 
-        {/* Rodapé da Sidebar: Status, Usuário e Versão */}
+        {/* Rodapé da Sidebar: Status e Usuário */}
         <div className="p-3 border-t border-slate-800/80 bg-slate-950/60 shrink-0 space-y-2">
           {!isCollapsed ? (
             <>
               {/* Indicador de Status do Sistema */}
-              <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-400 space-y-1.5">
+              <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-400 space-y-2">
                 <div className="flex items-center justify-between font-medium">
                   <span className="flex items-center gap-1.5 text-slate-300">
-                    <Server className="w-3 h-3 text-emerald-400" />
+                    <Server className="w-3.5 h-3.5 text-slate-400" />
                     Status do Sistema
                   </span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                  <span>Meta: {systemStatus.metaApi}</span>
-                  <span>DB: {systemStatus.database}</span>
-                  <span>R2: {systemStatus.storage}</span>
+                <div className="space-y-1.5 text-[10px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Meta API</span>
+                    <span className={`font-medium flex items-center gap-1.5 ${getServiceStatusDisplay(systemStatus.metaApi).textClass}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${getServiceStatusDisplay(systemStatus.metaApi).dotClass}`} />
+                      {getServiceStatusDisplay(systemStatus.metaApi).label}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Banco</span>
+                    <span className={`font-medium flex items-center gap-1.5 ${getServiceStatusDisplay(systemStatus.database).textClass}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${getServiceStatusDisplay(systemStatus.database).dotClass}`} />
+                      {getServiceStatusDisplay(systemStatus.database).label}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Armazenamento</span>
+                    <span className={`font-medium flex items-center gap-1.5 ${getServiceStatusDisplay(systemStatus.storage).textClass}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${getServiceStatusDisplay(systemStatus.storage).dotClass}`} />
+                      {getServiceStatusDisplay(systemStatus.storage).label}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Perfil do Administrador */}
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-                    <User className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="truncate">
-                    <div className="text-xs font-semibold text-white truncate">
-                      Administrador
+              {/* Usuário Real do Google / Supabase */}
+              {user ? (
+                <div className="relative" ref={userMenuRef}>
+                  {/* Popover do Usuário */}
+                  {isUserMenuOpen && (
+                    <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-900 border border-slate-800 rounded-2xl p-1.5 shadow-2xl shadow-black/80 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                      <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="text-xs font-bold text-white truncate">
+                            {user.name || user.email.split("@")[0]}
+                          </div>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider shrink-0 ${
+                            user.role === "admin"
+                              ? "bg-rose-500/20 text-rose-300 border-rose-500/30"
+                              : user.role === "developer"
+                              ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                              : "bg-slate-800 text-slate-400 border-slate-700"
+                          }`}>
+                            {user.role || "user"}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {user.email}
+                        </div>
+                      </div>
+                      <Link
+                        href="/configuracoes"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          onCloseMobile();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Configurações da conta</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsUserMenuOpen(false);
+                          await signOut();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sair</span>
+                      </button>
                     </div>
-                    <div className="text-[10px] text-slate-500 truncate">
-                      admin@agendador.com
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  )}
 
-              {/* Versão do App */}
-              <div className="text-[10px] text-slate-500 text-center pt-0.5">
-                Agendador v2.0 • Perfil Centric
-              </div>
+                  {/* Trigger do Usuário */}
+                  <button
+                    type="button"
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all cursor-pointer text-left group"
+                    aria-label="Menu do usuário"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.name || "Foto de perfil"}
+                          referrerPolicy="no-referrer"
+                          className="w-8 h-8 rounded-full object-cover border border-slate-700 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xs font-bold shrink-0">
+                          {(user.name || user.email).substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
+                          {user.name || user.email.split("@")[0]}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronUp
+                      className={`w-3.5 h-3.5 text-slate-500 transition-transform ${
+                        isUserMenuOpen ? "rotate-180 text-slate-300" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="flex flex-col items-center gap-2 py-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Sistema Operacional" />
-              <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs">
-                A
-              </div>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  systemStatus.database === "connected"
+                    ? "bg-emerald-500"
+                    : systemStatus.database === "error"
+                    ? "bg-rose-500"
+                    : "bg-amber-500"
+                }`}
+                title="Status do Sistema"
+              />
+              {user ? (
+                user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name || "Perfil"}
+                    referrerPolicy="no-referrer"
+                    className="w-7 h-7 rounded-full object-cover border border-slate-700"
+                    title={user.name || user.email}
+                  />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-[10px] font-bold"
+                    title={user.name || user.email}
+                  >
+                    {(user.name || user.email).substring(0, 2).toUpperCase()}
+                  </div>
+                )
+              ) : null}
             </div>
           )}
         </div>
@@ -414,3 +566,4 @@ export function Sidebar({ isMobileOpen, onCloseMobile }: SidebarProps) {
     </>
   );
 }
+

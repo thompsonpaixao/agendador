@@ -20,7 +20,7 @@ export default function NovaFilaReelsRedirectPage() {
           Selecione o Perfil para Gerenciar Reels
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-          O Agendador opera no modelo <strong>centrado em perfis</strong>. Cada conta possui seu repositório independente de vídeos e filas isoladas.
+          O AgendadorAuto opera no modelo <strong>centrado em perfis</strong>. Cada conta possui seu repositório independente de vídeos e filas isoladas.
         </p>
       </div>
 

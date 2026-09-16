@@ -17,10 +17,9 @@ export const MOCK_ERRORS: ErrorLog[] = [];
 export const MOCK_NOTIFICATIONS: NotificationItem[] = [];
 
 export const MOCK_SYSTEM_STATUS: SystemStatus = {
-  metaApi: "online",
-  database: "online",
-  storage: "online",
-  scheduler: "online",
+  metaApi: "not_configured",
+  database: "not_configured",
+  storage: "not_configured",
 };
 
 export const MOCK_SCHEDULED_POSTS: ScheduledPost[] = [];

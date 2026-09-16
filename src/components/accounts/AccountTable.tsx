@@ -98,7 +98,18 @@ export function AccountTable({ accounts }: AccountTableProps) {
 
                 {/* Status */}
                 <td className="px-4 py-3.5">
-                  <StatusBadge status={acc.status} />
+                  <div className="flex flex-col items-start gap-1">
+                    <StatusBadge status={acc.status} />
+                    <span
+                      className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
+                        acc.connectionMode === "external"
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                      }`}
+                    >
+                      Modo: {acc.connectionMode === "external" ? "Externo" : "Desenvolvimento"}
+                    </span>
+                  </div>
                 </td>
 
                 {/* Seguidores */}

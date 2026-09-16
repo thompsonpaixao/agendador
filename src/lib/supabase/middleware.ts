@@ -43,6 +43,31 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // VALIDAÇÃO DA ALLOWLIST NO SERVIDOR / MIDDLEWARE
+  const rawAllowed = process.env.ALLOWED_EMAILS || "";
+  const allowedEmails = rawAllowed
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (user && allowedEmails.length > 0) {
+    const userEmail = (user.email || "").toLowerCase();
+    if (!allowedEmails.includes(userEmail)) {
+      // E-mail não autorizado: encerra sessão imediatamente e limpa cookies
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = "?error=unauthorized";
+      const redirectResponse = NextResponse.redirect(url);
+      request.cookies.getAll().forEach((cookie) => {
+        if (cookie.name.startsWith("sb-")) {
+          redirectResponse.cookies.delete(cookie.name);
+        }
+      });
+      return redirectResponse;
+    }
+  }
+
   const pathname = request.nextUrl.pathname;
 
   const isProtectedRoute =
@@ -58,7 +83,7 @@ export async function updateSession(request: NextRequest) {
 
   const isAuthRoute = pathname === "/login" || pathname === "/cadastro";
 
-  // Redireciona usuário não autenticado para /login
+  // Redireciona usuário não autenticado para /login em rotas protegidas
   if (isProtectedRoute && !user && isConfigured) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

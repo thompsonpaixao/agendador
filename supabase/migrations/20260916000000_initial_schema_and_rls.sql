@@ -15,6 +15,7 @@ create table if not exists public.profiles (
   email text not null,
   name text,
   avatar_url text,
+  role text not null default 'user' check (role in ('user', 'developer', 'admin')),
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null
 );
@@ -23,13 +24,20 @@ create table if not exists public.profiles (
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, name, avatar_url)
+  insert into public.profiles (id, email, name, avatar_url, role)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture', '')
-  );
+    coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture', ''),
+    'user'
+  )
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    name = coalesce(excluded.name, public.profiles.name),
+    avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url),
+    updated_at = now();
   return new;
 end;
 $$ language plpgsql security definer;
@@ -64,8 +72,12 @@ create table if not exists public.accounts (
   random_variation_minutes integer default 7,
   last_published_at timestamptz,
   next_scheduled_at timestamptz,
+  access_token text,
+  token_expires_at timestamptz,
+  connection_mode text default 'development' check (connection_mode in ('development', 'external')),
   created_at timestamptz default now() not null,
-  updated_at timestamptz default now() not null
+  updated_at timestamptz default now() not null,
+  unique (user_id, instagram_user_id)
 );
 
 create index if not exists idx_accounts_user_id on public.accounts(user_id);

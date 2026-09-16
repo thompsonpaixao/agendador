@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAppState } from "@/context/AppStateContext";
@@ -8,13 +8,12 @@ import {
   Bell,
   Plus,
   Menu,
-  Sparkles,
   LogOut,
   Settings,
   ChevronDown,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -27,6 +26,7 @@ export function Header({ onToggleMobileSidebar }: HeaderProps) {
     notifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    systemStatus,
   } = useAppState();
 
   const { user, signOut } = useAuth();
@@ -49,9 +49,35 @@ export function Header({ onToggleMobileSidebar }: HeaderProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const userDisplayName = user?.name || user?.email?.split("@")[0] || "Usuário";
-  const userEmail = user?.email || "usuario@agendador.com";
-  const userInitials = userDisplayName.substring(0, 2).toUpperCase();
+  const userDisplayName = user?.name || user?.email?.split("@")[0] || "";
+  const userEmail = user?.email || "";
+  const userInitials = userDisplayName ? userDisplayName.substring(0, 2).toUpperCase() : "";
+
+  const metaStatus = systemStatus.metaApi;
+  const metaStatusLabel =
+    metaStatus === "connected"
+      ? "Conectado"
+      : metaStatus === "reconnect_required"
+      ? "Reconexão necessária"
+      : metaStatus === "error"
+      ? "Erro"
+      : "Não configurado";
+  const metaStatusColor =
+    metaStatus === "connected"
+      ? "text-emerald-600 font-semibold"
+      : metaStatus === "reconnect_required"
+      ? "text-amber-600 font-semibold"
+      : metaStatus === "error"
+      ? "text-rose-600 font-semibold"
+      : "text-amber-600 font-semibold";
+  const metaDotColor =
+    metaStatus === "connected"
+      ? "bg-emerald-500"
+      : metaStatus === "reconnect_required"
+      ? "bg-amber-500"
+      : metaStatus === "error"
+      ? "bg-rose-500"
+      : "bg-slate-400";
 
   return (
     <header className="sticky top-0 z-30 h-16 w-full bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-4">
@@ -66,6 +92,10 @@ export function Header({ onToggleMobileSidebar }: HeaderProps) {
           <Menu className="w-5 h-5" />
         </button>
 
+        <div className="lg:hidden flex items-center">
+          <BrandLogo size="md" href="/dashboard" />
+        </div>
+
         {/* Seletor Global de Contas */}
         <GlobalAccountSelector />
       </div>
@@ -74,9 +104,9 @@ export function Header({ onToggleMobileSidebar }: HeaderProps) {
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Badge Informativo da Meta API */}
         <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+          <span className={`w-2 h-2 rounded-full ${metaDotColor}`} />
           <span>Meta API:</span>
-          <span className="text-indigo-600 font-semibold">Modo Simulado</span>
+          <span className={metaStatusColor}>{metaStatusLabel}</span>
         </div>
 
         {/* Notificações Bell Dropdown */}
@@ -172,109 +202,126 @@ export function Header({ onToggleMobileSidebar }: HeaderProps) {
         <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
         {/* MENU DO USUÁRIO (GOOGLE AUTH & SUPABASE) */}
-        <div className="relative" ref={userMenuRef}>
-          <button
-            type="button"
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
-            aria-expanded={isUserMenuOpen}
-          >
-            {/* Foto do Usuário (Google ou Iniciais) */}
-            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0 border border-slate-200">
-              {user?.avatarUrl ? (
-                <Image
-                  src={user.avatarUrl}
-                  alt={userDisplayName}
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover"
-                  unoptimized
-                />
-              ) : (
-                <span>{userInitials}</span>
-              )}
-            </div>
+        {user ? (
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+              aria-expanded={isUserMenuOpen}
+            >
+              {/* Foto do Usuário (Google ou Iniciais) */}
+              <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0 border border-slate-200">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={userDisplayName}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{userInitials}</span>
+                )}
+              </div>
 
-            <div className="hidden md:flex flex-col text-left max-w-[120px]">
-              <span className="text-xs font-bold text-slate-800 leading-tight truncate">
-                {userDisplayName}
-              </span>
-              <span className="text-[10px] text-slate-400 truncate">
-                {userEmail}
-              </span>
-            </div>
+              <div className="hidden md:flex flex-col text-left max-w-[120px]">
+                <span className="text-xs font-bold text-slate-800 leading-tight truncate">
+                  {userDisplayName}
+                </span>
+                <span className="text-[10px] text-slate-400 truncate">
+                  {userEmail}
+                </span>
+              </div>
 
-            <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
-                isUserMenuOpen ? "rotate-180 text-slate-600" : ""
-              }`}
-            />
-          </button>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+                  isUserMenuOpen ? "rotate-180 text-slate-600" : ""
+                }`}
+              />
+            </button>
 
-          {/* Dropdown do Usuário */}
-          {isUserMenuOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-              {/* Cabeçalho do Card */}
-              <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                    {user?.avatarUrl ? (
-                      <Image
-                        src={user.avatarUrl}
-                        alt={userDisplayName}
-                        width={40}
-                        height={40}
-                        className="w-full h-full object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <span>{userInitials}</span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h5 className="text-xs font-bold text-slate-900 truncate">
-                      {userDisplayName}
-                    </h5>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      {userEmail}
-                    </p>
-                    <div className="inline-flex items-center gap-1 mt-1 text-[9px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100">
-                      <span>Sessão Ativa</span>
+            {/* Dropdown do Usuário */}
+            {isUserMenuOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                {/* Cabeçalho do Card */}
+                <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={userDisplayName}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>{userInitials}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h5 className="text-xs font-bold text-slate-900 truncate">
+                        {userDisplayName}
+                      </h5>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {userEmail}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="inline-flex items-center text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">
+                          Autenticado
+                        </span>
+                        <span className={`inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase tracking-wider ${
+                          user.role === "admin"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : user.role === "developer"
+                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        }`}>
+                          {user.role || "user"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Links Internos */}
-              <div className="p-1.5 space-y-0.5">
-                <Link
-                  href="/configuracoes"
-                  onClick={() => setIsUserMenuOpen(false)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                >
-                  <Settings className="w-4 h-4 text-slate-400" />
-                  <span>Configurações da Conta</span>
-                </Link>
-              </div>
+                {/* Links Internos */}
+                <div className="p-1.5 space-y-0.5">
+                  <Link
+                    href="/configuracoes"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                  >
+                    <Settings className="w-4 h-4 text-slate-400" />
+                    <span>Configurações da Conta</span>
+                  </Link>
+                </div>
 
-              {/* Botão Sair */}
-              <div className="p-1.5 border-t border-slate-100 bg-slate-50/30">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setIsUserMenuOpen(false);
-                    await signOut();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4 text-rose-500" />
-                  <span>Sair da conta</span>
-                </button>
+                {/* Botão Sair */}
+                <div className="p-1.5 border-t border-slate-100 bg-slate-50/30">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsUserMenuOpen(false);
+                      await signOut();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-500" />
+                    <span>Sair da conta</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+          >
+            Entrar
+          </Link>
+        )}
       </div>
     </header>
   );
 }
+

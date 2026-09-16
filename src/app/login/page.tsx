@@ -1,16 +1,15 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { InstagramIcon } from "@/components/icons/InstagramIcon";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import {
   Mail,
   Lock,
   ArrowRight,
   AlertCircle,
-  Sparkles,
   Loader2,
 } from "lucide-react";
 
@@ -20,9 +19,9 @@ function LoginContent() {
   const {
     signInWithGoogle,
     signInWithEmail,
-    devLogin,
     isConfigured,
     user,
+    isLoading: isAuthLoading,
   } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -35,9 +34,19 @@ function LoginContent() {
   const urlError = searchParams.get("error");
   const isUnauthorized = urlError === "unauthorized";
 
-  // Se já estiver logado, redireciona para o dashboard
-  if (user) {
-    router.push("/dashboard");
+  // Se já estiver autenticado, redireciona para o dashboard com replace
+  useEffect(() => {
+    if (user && !isAuthLoading) {
+      router.replace("/dashboard");
+    }
+  }, [user, isAuthLoading, router]);
+
+  if (user && !isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
   }
 
   const handleGoogleLogin = async () => {
@@ -75,13 +84,8 @@ function LoginContent() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Cabeçalho de Identidade */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2.5 group mb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shadow-sm shadow-rose-500/25 group-hover:scale-105 transition-transform">
-            <InstagramIcon className="w-6 h-6 fill-white" />
-          </div>
-          <span className="text-2xl font-extrabold tracking-tight text-slate-900">
-            Agendador
-          </span>
+        <Link href="/" className="inline-flex items-center group mb-4">
+          <BrandLogo size="2xl" />
         </Link>
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">
           Entrar na sua conta
@@ -99,9 +103,7 @@ function LoginContent() {
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <div>
                 <strong className="block font-bold">Acesso não autorizado</strong>
-                <span>
-                  Seu e-mail autenticado não possui permissão para acessar o sistema durante o período de desenvolvimento restrito.
-                </span>
+                <span>Este e-mail não possui acesso ao sistema.</span>
               </div>
             </div>
           )}
@@ -230,26 +232,6 @@ function LoginContent() {
               )}
             </button>
           </form>
-
-          {/* Atalho de Desenvolvimento Local (quando Supabase ainda não configurado) */}
-          {!isConfigured && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
-              <div className="flex items-center gap-2 font-semibold">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>Modo de Desenvolvimento Local</span>
-              </div>
-              <p className="text-[11px] text-amber-700 leading-relaxed">
-                As variáveis do Supabase ainda não foram preenchidas no <code>.env.local</code>. Você pode acessar o painel em modo de teste:
-              </p>
-              <button
-                type="button"
-                onClick={() => devLogin("admin@agendador.com", "Administrador Local")}
-                className="w-full py-1.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Acessar Painel em Modo de Teste →
-              </button>
-            </div>
-          )}
 
           {/* Rodapé do Card */}
           <div className="text-center pt-2 border-t border-slate-100">

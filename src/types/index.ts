@@ -1,10 +1,15 @@
-export type AccountStatus = "connected" | "expired" | "error" | "paused";
+﻿export type AccountStatus = "connected" | "expired" | "error" | "paused";
+
+export type ConnectionMode = "development" | "external";
+
+export type UserRole = "user" | "developer" | "admin";
 
 export interface UserProfile {
   id: string;
   email: string;
   name?: string;
   avatarUrl?: string;
+  role: UserRole;
   createdAt?: string;
 }
 
@@ -16,6 +21,7 @@ export interface Account {
   profilePicture: string;
   status: AccountStatus;
   statusMessage?: string;
+  connectionMode?: ConnectionMode;
   followers: number;
   newFollowersToday: number;
   postsToday: number;
@@ -109,6 +115,17 @@ export interface CarouselPost {
   caption?: string;
   scheduledAt?: string;
   status: PostStatus;
+  createdAt?: string;
+}
+
+export interface CarouselItem {
+  id: string;
+  userId: string;
+  carouselId: string;
+  mediaUrl: string;
+  thumbnailUrl?: string;
+  position: number;
+  type: "image" | "video";
   createdAt?: string;
 }
 
@@ -224,9 +241,11 @@ export interface NotificationItem {
   link?: string;
 }
 
+export type ServiceStatus = "connected" | "not_configured" | "error" | "reconnect_required";
+
 export interface SystemStatus {
-  metaApi: "online" | "degraded" | "offline";
-  database: "online" | "degraded" | "offline";
-  storage: "online" | "degraded" | "offline";
-  scheduler: "online" | "degraded" | "offline";
+  metaApi: ServiceStatus;
+  database: ServiceStatus;
+  storage: ServiceStatus;
 }
+

@@ -17,8 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agendador - Gestão e Agendamento para Instagram",
-  description: "Painel SaaS completo para gerenciamento, automação e agendamento de Reels e Carrosséis para múltiplas contas do Instagram.",
+  title: "AgendadorAuto - Gestão e Agendamento para Instagram",
+  description:
+    "Painel SaaS completo para gerenciamento, automação e agendamento de Reels e Carrosséis para múltiplas contas do Instagram com o AgendadorAuto.",
 };
 
 export default function RootLayout({

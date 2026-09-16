@@ -1,67 +1,40 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { useAppState } from "@/context/AppStateContext";
+import { useAuth } from "@/context/AuthContext";
 import { InstagramIcon } from "@/components/icons/InstagramIcon";
-import { Shield, Check, Loader2, Info, ArrowRight } from "lucide-react";
+import {
+  Shield,
+  Loader2,
+  ArrowRight,
+  AlertTriangle,
+  Code2,
+  Lock,
+  Info,
+} from "lucide-react";
 
 export function ConnectAccountModal() {
-  const { isConnectModalOpen, setIsConnectModalOpen, addAccount } = useAppState();
+  const { isConnectModalOpen, setIsConnectModalOpen } = useAppState();
+  const { isAdmin, isDeveloper } = useAuth();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [username, setUsername] = useState("");
-  const [name, setName] = useState("");
+  const isDevOrAdmin = isAdmin || isDeveloper;
+  const [activeMode, setActiveMode] = useState<"development" | "external">(
+    isDevOrAdmin ? "development" : "external"
+  );
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSimulateOAuth = () => {
+  const handleStartOAuth = (mode: "development" | "external") => {
+    if (mode === "external") return;
+    if (!isDevOrAdmin) return;
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setStep(2);
-    }, 1200);
-  };
-
-  const handleFinishConnection = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username.trim()) return;
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const cleanUsername = username.replace("@", "").trim();
-
-      addAccount({
-        username: cleanUsername,
-        name: name.trim() || cleanUsername,
-        profilePicture: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
-        status: "connected",
-        followers: 0,
-        newFollowersToday: 0,
-        postsToday: 0,
-        postsInQueue: 0,
-        postsLast7Days: 0,
-        successRate: 100,
-        errorsCount: 0,
-        defaultReelCaption: "",
-        defaultCarouselCaption: "",
-        defaultReelsPerDay: 5,
-        defaultCarouselsPerDay: 1,
-        defaultTimes: ["09:00", "12:00", "15:00", "18:00", "21:00"],
-        useRandomTimeVariation: true,
-        randomVariationMinutes: 5,
-      });
-
-      // Reset
-      setUsername("");
-      setName("");
-      setStep(1);
-      setIsConnectModalOpen(false);
-    }, 1000);
+    // Redireciona para o fluxo OAuth oficial server-side
+    window.location.href = `/api/instagram/auth?mode=${mode}`;
   };
 
   const handleClose = () => {
-    setStep(1);
+    setIsLoading(false);
     setIsConnectModalOpen(false);
   };
 
@@ -70,154 +43,213 @@ export function ConnectAccountModal() {
       isOpen={isConnectModalOpen}
       onClose={handleClose}
       title="Conectar Conta do Instagram"
-      description="Integração oficial através da Meta Graph API (Instagram Business / Creator)"
+      description="Integração oficial via Meta Graph API (Instagram Business & Creator)"
       maxWidth="lg"
     >
-      <div className="space-y-6">
-        {/* Passos visuais */}
-        <div className="flex items-center justify-between px-2 text-xs font-medium text-slate-500">
-          <div className="flex items-center gap-1.5 text-indigo-600 font-semibold">
-            <span className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[11px]">
-              1
-            </span>
-            <span>Meta OAuth</span>
-          </div>
-          <div className="w-12 h-px bg-slate-200"></div>
-          <div className={`flex items-center gap-1.5 ${step >= 2 ? "text-indigo-600 font-semibold" : ""}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${step >= 2 ? "bg-indigo-100 text-indigo-600" : "bg-slate-100"}`}>
-              2
-            </span>
-            <span>Perfil</span>
-          </div>
-          <div className="w-12 h-px bg-slate-200"></div>
-          <div className={`flex items-center gap-1.5 ${step === 3 ? "text-indigo-600 font-semibold" : ""}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${step === 3 ? "bg-indigo-100 text-indigo-600" : "bg-slate-100"}`}>
-              3
-            </span>
-            <span>Pronto</span>
-          </div>
-        </div>
-
-        {step === 1 && (
-          <div className="space-y-5 text-center py-2">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 p-0.5 mx-auto flex items-center justify-center shadow-lg shadow-rose-500/20">
-              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                <InstagramIcon className="w-8 h-8 text-rose-500" />
-              </div>
+      <div className="space-y-5">
+        {/* Seletor de Modo de Conexão */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Opção 1: Modo Desenvolvedor / Admin */}
+          <button
+            type="button"
+            onClick={() => setActiveMode("development")}
+            className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+              activeMode === "development"
+                ? "border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/20 shadow-xs"
+                : "border-slate-200 hover:border-slate-300 bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="p-2 rounded-xl bg-indigo-100 text-indigo-700">
+                <Code2 className="w-4 h-4" />
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+                {isAdmin ? "Admin" : isDeveloper ? "Developer" : "Restrito"}
+              </span>
             </div>
-
             <div>
-              <h4 className="text-base font-bold text-slate-900">
-                Autentique com a sua conta Meta
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                Conta de Desenvolvimento
               </h4>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
-                Você será redirecionado para autorizar o Agendador a publicar Reels e Carrosséis na sua conta profissional ou de criador de conteúdo.
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                Para contas de teste cadastradas no Meta Developers (Standard Access).
               </p>
             </div>
+          </button>
 
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-left text-xs text-slate-600 space-y-2">
-              <div className="flex items-center gap-2 text-slate-800 font-semibold">
-                <Shield className="w-4 h-4 text-emerald-600" />
-                <span>Permissões solicitadas:</span>
-              </div>
-              <ul className="list-disc pl-5 space-y-1 text-[11px] text-slate-500">
-                <li><code className="text-indigo-600">instagram_content_publish</code>: Para agendamento e postagem de Reels</li>
-                <li><code className="text-indigo-600">instagram_basic</code>: Para leitura de nome e foto de perfil</li>
-                <li><code className="text-indigo-600">pages_show_list</code>: Para identificação da página vinculada</li>
-              </ul>
+          {/* Opção 2: Conta Externa (Aguardando Aprovação Meta) */}
+          <button
+            type="button"
+            onClick={() => setActiveMode("external")}
+            className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+              activeMode === "external"
+                ? "border-slate-400 bg-slate-50 ring-2 ring-slate-300"
+                : "border-slate-200 hover:border-slate-300 bg-slate-50/60"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="p-2 rounded-xl bg-slate-200 text-slate-600">
+                <Lock className="w-4 h-4" />
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                Em breve
+              </span>
             </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <span>Conta Externa</span>
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                Para clientes finais e contas públicas sem função no app.
+              </p>
+            </div>
+          </button>
+        </div>
 
-            <button
-              type="button"
-              onClick={handleSimulateOAuth}
-              disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Conectando com a Meta...</span>
-                </>
-              ) : (
-                <>
-                  <span>Continuar com Facebook / Meta</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+        {/* Conteúdo do Modo: Desenvolvimento */}
+        {activeMode === "development" && (
+          <div className="space-y-4 pt-1 animate-in fade-in duration-150">
+            {!isDevOrAdmin ? (
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <Lock className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h5 className="text-xs font-bold text-slate-900">
+                      Modo Exclusivo para Desenvolvedores
+                    </h5>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Sua conta está configurada como usuário padrão. O modo de desenvolvimento é restrito a administradores e desenvolvedores cadastrados na Meta. Contas externas estarão disponíveis após aprovação no Meta App Review.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Explicação Curta Obrigatória */}
+                <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 space-y-2">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-amber-900">
+                        Requisito Obrigatório do Meta Developers:
+                      </h5>
+                      <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                        “Esta conta precisa estar adicionada como Instagram Tester/Função do app no Meta Developers e o convite precisa ter sido aceito.”
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Passos Práticos */}
+                  <div className="pt-2 border-t border-amber-200/80 text-[11px] text-amber-800/90 space-y-1 pl-7">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-amber-600" />
+                      <span>1. No portal Meta Developers: Adicione seu @username em <strong>Funções &gt; Instagram Testers</strong>.</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-amber-600" />
+                      <span>2. No aplicativo Instagram da conta: Vá em <strong>Configurações &gt; Apps e sites &gt; Convites do testador</strong> e clique em <strong>Aceitar</strong>.</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transparência das Permissões Oficiais (Item 1 & Item 10) */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2.5">
+                  <div className="flex items-center gap-2 text-slate-900 font-bold">
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    <span>Permissões Oficiais Solicitadas na Meta:</span>
+                  </div>
+                  <ul className="space-y-2 text-[11px] pl-2">
+                    <li className="flex items-start gap-2">
+                      <code className="px-1.5 py-0.5 rounded bg-indigo-100/80 text-indigo-700 font-mono text-[10px] shrink-0 font-bold">
+                        instagram_business_basic
+                      </code>
+                      <span className="text-slate-600">
+                        Identificação da conta: ID numérico, @username, nome de exibição e foto do perfil.
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-1.5 py-0.5 rounded bg-indigo-100/80 text-indigo-700 font-mono text-[10px] shrink-0 font-bold">
+                        instagram_business_content_publish
+                      </code>
+                      <span className="text-slate-600">
+                        Publicação e agendamento automático de Reels, Carrosséis e fotos no feed.
+                      </span>
+                    </li>
+                  </ul>
+
+                  <div className="pt-2 border-t border-slate-200/80 flex items-start gap-2 text-[11px] text-slate-500">
+                    <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <span>
+                      Nenhuma permissão para mensagens privadas (Directs), comentários ou anúncios é solicitada. As permissões e o status de conexão somente são concedidos após você autorizar nas telas oficiais da Meta.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Botão de Ação: OAuth Oficial */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleStartOAuth("development")}
+                    disabled={isLoading}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 hover:opacity-95 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-purple-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Redirecionando para a Meta...</span>
+                      </>
+                    ) : (
+                      <>
+                        <InstagramIcon className="w-4 h-4 fill-white" />
+                        <span>Continuar para autorização oficial do Instagram</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
-        {step === 2 && (
-          <form onSubmit={handleFinishConnection} className="space-y-4 py-1">
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2.5">
-              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Autenticação OAuth simulada com sucesso! Confirme os dados da conta abaixo.</span>
-            </div>
-
-            <div>
-              <label htmlFor="modalUsername" className="block text-xs font-semibold text-slate-700 mb-1">
-                Nome de usuário do Instagram (@username) *
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm">@</span>
-                <input
-                  id="modalUsername"
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="sua_marca_oficial"
-                  className="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
-                />
+        {/* Conteúdo do Modo: Conta Externa (Desabilitado) */}
+        {activeMode === "external" && (
+          <div className="space-y-4 pt-1 animate-in fade-in duration-150">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 space-y-2">
+              <div className="flex items-start gap-2.5">
+                <Lock className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h5 className="text-xs font-bold text-slate-900">
+                      Conexão Externa para Clientes
+                    </h5>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                      Aguardando aprovação Meta
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Disponível após aprovação do aplicativo pela Meta (Advanced Access).
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Esse fluxo será liberado para clientes finais que não possuem função de desenvolvedor no app, garantindo conexão pública imediata após a conclusão da verificação empresarial e do Meta App Review.
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label htmlFor="modalName" className="block text-xs font-semibold text-slate-700 mb-1">
-                Nome de exibição da conta
-              </label>
-              <input
-                id="modalName"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Sua Marca | Oficial"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
-              />
-            </div>
-
-            <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100 text-xs text-indigo-700 flex items-start gap-2">
-              <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-              <span>
-                Em produção, esses dados serão obtidos automaticamente através da Graph API no endpoint <code className="bg-indigo-100/70 px-1 py-0.5 rounded font-mono text-[10px]">GET /me/accounts</code>.
-              </span>
-            </div>
-
-            <div className="pt-2 flex gap-3">
+            {/* Botão Desabilitado */}
+            <div className="pt-2">
               <button
                 type="button"
-                onClick={() => setStep(1)}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+                disabled
+                title="Disponível após aprovação do aplicativo pela Meta."
+                className="w-full py-3 px-4 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-semibold text-xs sm:text-sm cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Voltar
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading || !username.trim()}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <span>Concluir Conexão</span>
-                )}
+                <Lock className="w-4 h-4" />
+                <span>Conectar conta externa (Indisponível no momento)</span>
               </button>
             </div>
-          </form>
+          </div>
         )}
       </div>
     </Modal>

@@ -40,15 +40,15 @@ export function StatusModal({ isOpen, onClose, result, onReset }: StatusModalPro
           </p>
         </div>
 
-        {/* Informações detalhadas da simulação */}
+        {/* Informações detalhadas do container */}
         <div className="space-y-3 bg-zinc-950/80 border border-zinc-800/80 rounded-2xl p-4 text-xs font-mono">
           <div className="flex justify-between items-center pb-2 border-b border-zinc-800/60 text-zinc-400">
             <span className="flex items-center gap-1.5 font-sans font-medium text-zinc-300">
               <Code2 className="w-3.5 h-3.5 text-rose-400" />
               Meta Graph API Container
             </span>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              SIMULADO
+            <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-sans font-medium">
+              Processado
             </span>
           </div>
 

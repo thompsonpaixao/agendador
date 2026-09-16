@@ -98,7 +98,18 @@ export function AccountCard({ account }: AccountCardProps) {
             </div>
           </div>
 
-          <StatusBadge status={account.status} />
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <StatusBadge status={account.status} />
+            <span
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                account.connectionMode === "external"
+                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                  : "bg-indigo-50 text-indigo-700 border-indigo-200"
+              }`}
+            >
+              Modo: {account.connectionMode === "external" ? "Externo" : "Desenvolvimento"}
+            </span>
+          </div>
         </div>
 
         {/* Mensagem de alerta se houver */}

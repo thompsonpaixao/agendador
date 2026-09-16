@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from "react";
 import {
   Account,
+  AccountStatus,
   ErrorLog,
   NotificationItem,
   ScheduledPost,
@@ -10,6 +11,7 @@ import {
   ReelQueue,
   CarouselQueue,
   SystemStatus,
+  ServiceStatus,
   MediaItem,
   CarouselPost,
 } from "@/types";
@@ -26,6 +28,8 @@ import {
   MOCK_PROFILE_CAROUSELS,
 } from "@/lib/mock-data";
 import { useToast } from "./ToastContext";
+import { useAuth } from "./AuthContext";
+import { createClient } from "@/lib/supabase/client";
 
 interface AppStateContextType {
   // Contas
@@ -36,6 +40,7 @@ interface AppStateContextType {
   toggleAccountPause: (id: string) => void;
   reconnectAccount: (id: string) => void;
   addAccount: (account: Omit<Account, "id">) => void;
+  refreshAccounts: () => Promise<void>;
 
   // Erros e Alertas
   errors: ErrorLog[];
@@ -78,8 +83,44 @@ interface AppStateContextType {
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
 
+function mapDbAccountToAccount(row: Record<string, unknown>): Account {
+  return {
+    id: String(row.id),
+    userId: row.user_id ? String(row.user_id) : undefined,
+    username: String(row.username || ""),
+    name: String(row.name || row.username || ""),
+    profilePicture:
+      (row.profile_picture as string) ||
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+    status: (row.status as AccountStatus) || "connected",
+    statusMessage: row.status_message ? String(row.status_message) : undefined,
+    followers: typeof row.followers === "number" ? row.followers : 0,
+    newFollowersToday: typeof row.new_followers_today === "number" ? row.new_followers_today : 0,
+    postsToday: typeof row.posts_today === "number" ? row.posts_today : 0,
+    postsInQueue: typeof row.posts_in_queue === "number" ? row.posts_in_queue : 0,
+    postsLast7Days: typeof row.posts_last_7_days === "number" ? row.posts_last_7_days : 0,
+    lastPublishedAt: row.last_published_at ? String(row.last_published_at) : undefined,
+    successRate: row.success_rate != null ? Number(row.success_rate) : 100,
+    errorsCount: typeof row.errors_count === "number" ? row.errors_count : 0,
+    defaultReelCaption: String(row.default_reel_caption || ""),
+    defaultCarouselCaption: String(row.default_carousel_caption || ""),
+    defaultReelsPerDay: typeof row.default_reels_per_day === "number" ? row.default_reels_per_day : 1,
+    defaultCarouselsPerDay:
+      typeof row.default_carousels_per_day === "number" ? row.default_carousels_per_day : 1,
+    defaultTimes: Array.isArray(row.default_times)
+      ? (row.default_times as string[])
+      : ["10:00", "15:00", "20:00"],
+    useRandomTimeVariation: row.use_random_time_variation !== false,
+    randomVariationMinutes:
+      typeof row.random_variation_minutes === "number" ? row.random_variation_minutes : 7,
+    nextScheduledAt: row.next_scheduled_at ? String(row.next_scheduled_at) : undefined,
+    connectionMode: row.connection_mode === "external" ? "external" : "development",
+  };
+}
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const { addToast } = useToast();
+  const { supabaseUser, isConfigured } = useAuth();
 
   const [accounts, setAccounts] = useState<Account[]>(MOCK_ACCOUNTS);
   const [selectedAccountId, setSelectedAccountIdState] = useState<string>("all");
@@ -91,8 +132,99 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [carouselQueues, setCarouselQueues] = useState<CarouselQueue[]>(MOCK_CAROUSEL_QUEUES);
   const [profileMedia, setProfileMedia] = useState<MediaItem[]>(MOCK_PROFILE_MEDIA);
   const [profileCarousels, setProfileCarousels] = useState<CarouselPost[]>(MOCK_PROFILE_CAROUSELS);
-  const [systemStatus] = useState<SystemStatus>(MOCK_SYSTEM_STATUS);
+  const [dbStatus, setDbStatus] = useState<ServiceStatus>("not_configured");
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+
+  // Sincronização de contas com o Supabase (filtradas por user_id via RLS)
+  const refreshAccounts = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("accounts")
+        .select(
+          "id, user_id, instagram_user_id, username, name, profile_picture, status, status_message, followers, new_followers_today, posts_today, posts_in_queue, posts_last_7_days, success_rate, errors_count, default_reel_caption, default_carousel_caption, default_reels_per_day, default_carousels_per_day, default_times, use_random_time_variation, random_variation_minutes, last_published_at, next_scheduled_at"
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.warn("Aviso ao carregar contas do Supabase:", error.message);
+        setDbStatus("error");
+        return;
+      }
+
+      setDbStatus("connected");
+      if (data) {
+        const mapped = data.map((item) => mapDbAccountToAccount(item as Record<string, unknown>));
+        setAccounts(mapped);
+      }
+    } catch (err) {
+      console.warn("Erro ao buscar contas conectadas:", err);
+      setDbStatus("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadAccounts() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("accounts")
+          .select(
+            "id, user_id, instagram_user_id, username, name, profile_picture, status, status_message, followers, new_followers_today, posts_today, posts_in_queue, posts_last_7_days, success_rate, errors_count, default_reel_caption, default_carousel_caption, default_reels_per_day, default_carousels_per_day, default_times, use_random_time_variation, random_variation_minutes, last_published_at, next_scheduled_at"
+          )
+          .order("created_at", { ascending: false });
+
+        if (!ignore) {
+          if (error) {
+            setDbStatus("error");
+          } else {
+            setDbStatus("connected");
+            if (data) {
+              setAccounts(data.map((item) => mapDbAccountToAccount(item as Record<string, unknown>)));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao buscar contas:", err);
+        if (!ignore) {
+          setDbStatus("error");
+        }
+      }
+    }
+
+    if (supabaseUser) {
+      void loadAccounts();
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [supabaseUser]);
+
+  // Status real dos serviços (Item 12: Não configurado, Conectado, Erro, Reconexão necessária)
+  const metaApiStatus: ServiceStatus = useMemo(() => {
+    if (accounts.length === 0) {
+      return "not_configured";
+    }
+    const hasExpired = accounts.some((a) => a.status === "expired");
+    if (hasExpired) return "reconnect_required";
+    const hasError = accounts.some((a) => a.status === "error");
+    if (hasError) return "error";
+    const hasConnected = accounts.some((a) => a.status === "connected");
+    if (hasConnected) return "connected";
+    return "not_configured";
+  }, [accounts]);
+
+  const systemStatus: SystemStatus = useMemo(
+    () => ({
+      metaApi: metaApiStatus,
+      database: isConfigured ? dbStatus : "not_configured",
+      storage: "not_configured",
+    }),
+    [metaApiStatus, isConfigured, dbStatus]
+  );
 
   // Conta ativa selecionada
   const selectedAccount = useMemo(() => {
@@ -192,7 +324,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     addToast({
       type: "success",
       title: "Nova Conta Conectada!",
-      message: `@${newAccount.username} foi integrada ao Agendador.`,
+      message: `@${newAccount.username} foi integrada ao AgendadorAuto.`,
     });
   };
 
@@ -450,6 +582,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         toggleAccountPause,
         reconnectAccount,
         addAccount,
+        refreshAccounts,
         errors,
         criticalErrorsCount,
         resolveError,
@@ -492,3 +625,4 @@ export function useAppState() {
   }
   return context;
 }
+

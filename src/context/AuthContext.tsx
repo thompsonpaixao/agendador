@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { useRouter } from "next/navigation";
 import { User, Session } from "@supabase/supabase-js";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { UserProfile } from "@/types";
+import { UserProfile, UserRole } from "@/types";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -12,6 +12,9 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   isConfigured: boolean;
+  role: UserRole;
+  isAdmin: boolean;
+  isDeveloper: boolean;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithEmail: (
@@ -20,29 +23,55 @@ interface AuthContextType {
     name?: string
   ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  devLogin: (email?: string, name?: string) => void;
   isAllowedEmail: (email: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function fetchUserProfile(supabase: ReturnType<typeof createClient>, authUser: User): Promise<UserProfile> {
+  const email = authUser.email || "";
+  const metadata = authUser.user_metadata || {};
+  let userRole: UserRole = "user";
+
+  const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", authUser.id)
+      .single();
+
+    if (profile?.role && (profile.role === "admin" || profile.role === "developer" || profile.role === "user")) {
+      userRole = profile.role as UserRole;
+    } else if (adminEmails.includes(email.toLowerCase())) {
+      userRole = "admin";
+      void supabase.from("profiles").upsert({ id: authUser.id, email, role: "admin" });
+    }
+  } catch {
+    if (adminEmails.includes(email.toLowerCase())) {
+      userRole = "admin";
+    }
+  }
+
+  return {
+    id: authUser.id,
+    email,
+    name: metadata.full_name || metadata.name || email.split("@")[0],
+    avatarUrl: metadata.avatar_url || metadata.picture,
+    role: userRole,
+    createdAt: authUser.created_at,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    if (typeof window !== "undefined") {
-      const savedDevUser = sessionStorage.getItem("agendador_dev_user");
-      if (savedDevUser) {
-        try {
-          return JSON.parse(savedDevUser);
-        } catch {
-          sessionStorage.removeItem("agendador_dev_user");
-        }
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(() => isSupabaseConfigured());
 
   const isConfigured = useMemo(() => isSupabaseConfigured(), []);
@@ -72,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
 
     // Busca sessão inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
         setSupabaseUser(session.user);
@@ -83,19 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setSession(null);
           setSupabaseUser(null);
-          router.push("/login?error=unauthorized");
+          router.replace("/login?error=unauthorized");
           setIsLoading(false);
           return;
         }
 
-        const metadata = session.user.user_metadata || {};
-        setUser({
-          id: session.user.id,
-          email,
-          name: metadata.full_name || metadata.name || email.split("@")[0],
-          avatarUrl: metadata.avatar_url || metadata.picture,
-          createdAt: session.user.created_at,
-        });
+        const profile = await fetchUserProfile(supabase, session.user);
+        setUser(profile);
       }
       setIsLoading(false);
     });
@@ -103,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Escuta mudanças no estado de autenticação
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session?.user) {
         setSupabaseUser(session.user);
@@ -114,18 +137,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setSession(null);
           setSupabaseUser(null);
-          router.push("/login?error=unauthorized");
+          router.replace("/login?error=unauthorized");
           return;
         }
 
-        const metadata = session.user.user_metadata || {};
-        setUser({
-          id: session.user.id,
-          email,
-          name: metadata.full_name || metadata.name || email.split("@")[0],
-          avatarUrl: metadata.avatar_url || metadata.picture,
-          createdAt: session.user.created_at,
-        });
+        const profile = await fetchUserProfile(supabase, session.user);
+        setUser(profile);
       } else {
         setSupabaseUser(null);
         setUser(null);
@@ -141,9 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Login com Google OAuth
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {
     if (!isConfigured) {
-      // Fallback dev caso Supabase ainda não tenha credenciais inseridas
-      devLogin("admin@agendador.com", "Administrador Agendador");
-      return { error: null };
+      return {
+        error: "Supabase não configurado. Adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local",
+      };
     }
 
     try {
@@ -155,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           redirectTo: `${origin}/auth/callback`,
           queryParams: {
             access_type: "offline",
-            prompt: "consent",
+            prompt: "select_account",
           },
         },
       });
@@ -177,13 +194,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<{ error: string | null }> => {
     if (!isAllowedEmail(email)) {
       return {
-        error: "Acesso não autorizado. Este e-mail não possui permissão de acesso no momento.",
+        error: "Este e-mail não possui acesso ao sistema.",
       };
     }
 
     if (!isConfigured) {
-      devLogin(email, email.split("@")[0]);
-      return { error: null };
+      return {
+        error: "Supabase não configurado. Adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local",
+      };
     }
 
     try {
@@ -200,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user && !isAllowedEmail(data.user.email || "")) {
         await supabase.auth.signOut();
         return {
-          error: "Acesso não autorizado. Este e-mail não possui permissão de acesso.",
+          error: "Este e-mail não possui acesso ao sistema.",
         };
       }
 
@@ -218,13 +236,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<{ error: string | null }> => {
     if (!isAllowedEmail(email)) {
       return {
-        error: "Acesso não autorizado. Este e-mail não está na lista de permissões para cadastro.",
+        error: "Este e-mail não possui acesso ao sistema.",
       };
     }
 
     if (!isConfigured) {
-      devLogin(email, name || email.split("@")[0]);
-      return { error: null };
+      return {
+        error: "Supabase não configurado. Adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local",
+      };
     }
 
     try {
@@ -246,7 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user && !isAllowedEmail(data.user.email || "")) {
         await supabase.auth.signOut();
         return {
-          error: "Acesso não autorizado. Este e-mail não está permitido.",
+          error: "Este e-mail não possui acesso ao sistema.",
         };
       }
 
@@ -262,32 +281,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient();
       await supabase.auth.signOut();
     }
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("agendador_dev_user");
-    }
     setUser(null);
     setSession(null);
     setSupabaseUser(null);
-    router.push("/");
-  };
-
-  // Login de desenvolvimento simulado (para testes locais sem credenciais reais)
-  const devLogin = (
-    email: string = "usuario@agendador.com",
-    name: string = "Usuário Agendador"
-  ) => {
-    const devUser: UserProfile = {
-      id: "usr_dev_" + Math.random().toString(36).substring(2, 9),
-      email,
-      name,
-      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-      createdAt: new Date().toISOString(),
-    };
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("agendador_dev_user", JSON.stringify(devUser));
-    }
-    setUser(devUser);
-    router.push("/dashboard");
+    router.replace("/");
   };
 
   return (
@@ -298,11 +295,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         isLoading,
         isConfigured,
+        role: user?.role || "user",
+        isAdmin: user?.role === "admin",
+        isDeveloper: user?.role === "developer" || user?.role === "admin",
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
         signOut,
-        devLogin,
         isAllowedEmail,
       }}
     >

@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { InstagramIcon } from "@/components/icons/InstagramIcon";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import {
   Mail,
   Lock,
@@ -20,9 +20,9 @@ function CadastroContent() {
   const {
     signInWithGoogle,
     signUpWithEmail,
-    devLogin,
     isConfigured,
     user,
+    isLoading: isAuthLoading,
   } = useAuth();
 
   const [name, setName] = useState("");
@@ -34,9 +34,19 @@ function CadastroContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Se já estiver logado, redireciona para o dashboard
-  if (user) {
-    router.push("/dashboard");
+  // Se já estiver logado, redireciona para o dashboard com replace
+  useEffect(() => {
+    if (user && !isAuthLoading) {
+      router.replace("/dashboard");
+    }
+  }, [user, isAuthLoading, router]);
+
+  if (user && !isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
   }
 
   const handleGoogleSignup = async () => {
@@ -90,13 +100,8 @@ function CadastroContent() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Cabeçalho de Identidade */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2.5 group mb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shadow-sm shadow-rose-500/25 group-hover:scale-105 transition-transform">
-            <InstagramIcon className="w-6 h-6 fill-white" />
-          </div>
-          <span className="text-2xl font-extrabold tracking-tight text-slate-900">
-            Agendador
-          </span>
+        <Link href="/" className="inline-flex items-center group mb-4">
+          <BrandLogo size="2xl" />
         </Link>
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">
           Criar sua conta
