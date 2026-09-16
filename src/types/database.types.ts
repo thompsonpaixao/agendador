@@ -94,11 +94,6 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["instagram_account_secrets"]["Insert"]>;
       };
 
-      accounts: {
-        Row: Database["public"]["Tables"]["instagram_accounts"]["Row"];
-        Insert: Database["public"]["Tables"]["instagram_accounts"]["Insert"];
-        Update: Database["public"]["Tables"]["instagram_accounts"]["Update"];
-      };
 
       media: {
         Row: {

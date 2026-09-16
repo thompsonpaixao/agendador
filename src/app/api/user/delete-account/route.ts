@@ -1,5 +1,6 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
@@ -18,17 +19,16 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const { confirmation } = body;
 
-    if (confirmation !== "EXCLUIR") {
+    if (confirmation !== "EXCLUIR_DEFINITIVAMENTE") {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Confirmação inválida. É obrigatório digitar exatamente 'EXCLUIR' para autorizar a exclusão definitiva.",
-        },
+        { success: false, message: "Texto de confirmação inválido." },
         { status: 400 }
       );
     }
 
     const userId = user.id;
+    const supabaseAdmin = createAdminClient();
+    const admin = supabaseAdmin || supabase;
 
     // 1. Remove em cascata todos os dados privados do usuário autenticado
     // (Respeitando a ordem de chaves estrangeiras)
@@ -42,10 +42,11 @@ export async function POST(request: Request) {
     ]);
 
     await Promise.all([
+      admin.from("instagram_account_secrets").delete().eq("user_id", userId),
+      admin.from("instagram_accounts").delete().eq("user_id", userId),
       supabase.from("carousels").delete().eq("user_id", userId),
       supabase.from("reel_queues").delete().eq("user_id", userId),
       supabase.from("media").delete().eq("user_id", userId),
-      supabase.from("accounts").delete().eq("user_id", userId),
     ]);
 
     // 2. Remove o perfil do usuário

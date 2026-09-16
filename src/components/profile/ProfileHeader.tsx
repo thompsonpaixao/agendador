@@ -95,15 +95,21 @@ export function ProfileHeader({ account, activeTabTitle }: ProfileHeaderProps) {
       {/* Card do Perfil */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
-          <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-sm shrink-0">
-            <Image
-              src={account.profilePicture}
-              alt={account.username}
-              width={64}
-              height={64}
-              className="w-full h-full object-cover"
-              unoptimized
-            />
+          <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center">
+            {account.profilePicture ? (
+              <Image
+                src={account.profilePicture}
+                alt={account.username}
+                width={64}
+                height={64}
+                className="w-full h-full object-cover"
+                unoptimized
+              />
+            ) : (
+              <span className="font-bold text-slate-500 text-xl uppercase select-none">
+                {account.username.charAt(0) || "I"}
+              </span>
+            )}
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2.5">

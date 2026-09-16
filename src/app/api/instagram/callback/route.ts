@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // 2. Verifica se o usuário do Supabase está autenticado
+  // 2. Valida usuário autenticado usando createClient() apenas para getUser()
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,17 +44,25 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?redirect=/contas`);
   }
 
-  // 3. Credenciais da Meta exclusivamente server-side
+  // 3. Inicializa cliente administrativo seguro para operações backend/service_role
+  const supabaseAdmin = createAdminClient();
+  if (!supabaseAdmin) {
+    console.error("[Instagram OAuth Callback] Falha: Cliente administrativo do Supabase não configurado.");
+    return NextResponse.redirect(`${origin}/contas?error=server_configuration`);
+  }
+
+  // 4. Credenciais da Meta exclusivamente server-side
   const metaAppId = process.env.META_APP_ID;
   const metaAppSecret = process.env.META_APP_SECRET;
   const metaRedirectUri = process.env.META_REDIRECT_URI;
 
   if (!metaAppId || !metaAppSecret || !metaRedirectUri) {
+    console.error("[Instagram OAuth Callback] Credenciais Meta incompletas nas variáveis de ambiente.");
     return NextResponse.redirect(`${origin}/contas?error=meta_not_configured`);
   }
 
   try {
-    // 4. Troca o código pelo Short-Lived Access Token via endpoint oficial da Meta
+    // 5. Troca o código pelo Short-Lived Access Token via endpoint oficial da Meta
     const tokenFormData = new FormData();
     tokenFormData.append("client_id", metaAppId);
     tokenFormData.append("client_secret", metaAppSecret);
@@ -73,16 +81,15 @@ export async function GET(request: Request) {
     const tokenData = await tokenResponse.json();
 
     if (!tokenResponse.ok || !tokenData.access_token) {
-      // Segurança: Log sanitizado sem expor resposta bruta ou tokens
       const errorCode = tokenData.error?.code || tokenData.error_type || "token_exchange_failed";
-      console.warn("Falha segura na troca do token Meta. Código:", errorCode);
+      console.warn("[Instagram OAuth Callback] Falha na troca do token Meta. Código:", errorCode);
       return NextResponse.redirect(`${origin}/contas?error=invalid_token`);
     }
 
     const shortLivedToken = tokenData.access_token;
     const instagramUserId = String(tokenData.user_id);
 
-    // 5. Troca pelo Long-Lived Access Token (60 dias) via graph.instagram.com
+    // 6. Troca pelo Long-Lived Access Token (60 dias) via graph.instagram.com
     let finalAccessToken = shortLivedToken;
     let tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -103,7 +110,8 @@ export async function GET(request: Request) {
       // Fallback seguro: usa o shortLivedToken sem logar detalhes sensíveis
     }
 
-    // 6. Busca dados do perfil do Instagram via Graph API
+    // 7. Busca dados do perfil do Instagram via Graph API com versão configurável
+    const graphVersion = process.env.META_GRAPH_VERSION || "v26.0";
     let profileData: {
       id?: string;
       username?: string;
@@ -114,7 +122,7 @@ export async function GET(request: Request) {
     } = {};
 
     try {
-      const profileUrl = `https://graph.instagram.com/v21.0/me?fields=id,username,name,account_type,profile_picture_url,followers_count&access_token=${finalAccessToken}`;
+      const profileUrl = `https://graph.instagram.com/${graphVersion}/me?fields=id,username,name,account_type,profile_picture_url,followers_count&access_token=${finalAccessToken}`;
       const profileResponse = await fetch(profileUrl);
       if (profileResponse.ok) {
         profileData = await profileResponse.json();
@@ -141,13 +149,11 @@ export async function GET(request: Request) {
       .replace("@", "")
       .trim();
     const displayName = profileData.name || username;
-    const profilePic =
-      profileData.profile_picture_url ||
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
+    // NÃO usa fotos fictícias do Unsplash; usa a foto oficial se disponível ou null (UI exibe avatar placeholder)
+    const profilePic = profileData.profile_picture_url || null;
 
-    // 7. Salva a conta conectada no Supabase vinculada ao user_id autenticado
-    // O token fica armazenado estritamente em instagram_account_secrets (cofre isolado sem SELECT para o frontend)
-    const { data: savedAccount } = await supabase
+    // 8. Salva a conta em public.instagram_accounts exclusivamente via supabaseAdmin (service_role)
+    const { data: savedAccount, error: accountError } = await supabaseAdmin
       .from("instagram_accounts")
       .upsert(
         {
@@ -159,8 +165,8 @@ export async function GET(request: Request) {
           account_type: profileData.account_type || "UNKNOWN",
           status: "connected",
           status_message: "Conexão oficial ativa via Meta Graph API",
-          token_status: "valid",
-          has_publish_permission: true,
+          token_status: "unknown",
+          has_publish_permission: false,
           has_insights_permission: false,
           last_verified_at: new Date().toISOString(),
           followers_count: profileData.followers_count || 0,
@@ -173,58 +179,49 @@ export async function GET(request: Request) {
       .select("id")
       .single();
 
-    const accountId = savedAccount?.id;
-
-    if (accountId) {
-      const supabaseAdmin = createAdminClient();
-      if (supabaseAdmin) {
-        const { encrypted, iv } = encryptToken(finalAccessToken);
-        await supabaseAdmin
-          .from("instagram_account_secrets")
-          .upsert(
-            {
-              user_id: user.id,
-              instagram_account_id: accountId,
-              token_encrypted: encrypted,
-              token_iv: iv,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "instagram_account_id" }
-          );
-      }
+    if (accountError || !savedAccount) {
+      console.error("[Instagram OAuth Callback] Falha ao salvar instagram_accounts:", {
+        code: accountError?.code,
+        message: accountError?.message,
+      });
+      return NextResponse.redirect(`${origin}/contas?error=account_save_failed`);
     }
 
-    // Compatibilidade legada com a tabela 'accounts' caso exista
-    try {
-      await supabase
-        .from("accounts")
-        .upsert(
-          {
-            user_id: user.id,
-            instagram_user_id: String(profileData.id || instagramUserId),
-            username: username,
-            name: displayName,
-            profile_picture: profilePic,
-            status: "connected",
-            status_message: "Conexão oficial ativa via Meta Graph API",
-            followers: profileData.followers_count || 0,
-            access_token: finalAccessToken,
-            token_expires_at: tokenExpiresAt,
-            connection_mode: connectionMode,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id,instagram_user_id" }
-        );
-    } catch {
-      // Compatibilidade legada silenciosa
+    const accountId = savedAccount.id;
+    console.log("[Instagram OAuth Callback] Instagram account saved:", accountId);
+
+    // 9. Criptografa o token com AES-256-GCM e salva em instagram_account_secrets via supabaseAdmin
+    const { encrypted, iv } = encryptToken(finalAccessToken);
+    const { error: secretError } = await supabaseAdmin
+      .from("instagram_account_secrets")
+      .upsert(
+        {
+          user_id: user.id,
+          instagram_account_id: accountId,
+          token_encrypted: encrypted,
+          token_iv: iv,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "instagram_account_id" }
+      );
+
+    if (secretError) {
+      console.error("[Instagram OAuth Callback] Falha ao salvar instagram_account_secrets:", {
+        code: secretError?.code,
+        message: secretError?.message,
+      });
+      return NextResponse.redirect(`${origin}/contas?error=token_save_failed`);
     }
 
-    // 8. Redireciona para /contas com indicação de sucesso (sem expor IDs ou tokens)
+    console.log("[Instagram OAuth Callback] Instagram account secrets saved para accountId:", accountId);
+
+    // 10. Redireciona com sucesso somente após ambas as tabelas serem confirmadas
     return NextResponse.redirect(
       `${origin}/contas?connected=true&username=${encodeURIComponent(username)}&mode=${connectionMode}`
     );
-  } catch {
-    // Tratamento de erro seguro: nenhuma stack trace ou dado de token é logado ou exposto
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Erro desconhecido";
+    console.error("[Instagram OAuth Callback] Exceção durante processamento:", errorMsg);
     return NextResponse.redirect(`${origin}/contas?error=invalid_token`);
   }
 }

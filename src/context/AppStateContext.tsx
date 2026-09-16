@@ -89,12 +89,10 @@ function mapDbAccountToAccount(row: Record<string, unknown>): Account {
     userId: row.user_id ? String(row.user_id) : undefined,
     username: String(row.username || ""),
     name: String(row.name || row.username || ""),
-    profilePicture:
-      (row.profile_picture as string) ||
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+    profilePicture: (row.profile_picture_url as string) || (row.profile_picture as string) || "",
     status: (row.status as AccountStatus) || "connected",
     statusMessage: row.status_message ? String(row.status_message) : undefined,
-    followers: typeof row.followers === "number" ? row.followers : 0,
+    followers: typeof row.followers_count === "number" ? row.followers_count : typeof row.followers === "number" ? row.followers : 0,
     newFollowersToday: typeof row.new_followers_today === "number" ? row.new_followers_today : 0,
     postsToday: typeof row.posts_today === "number" ? row.posts_today : 0,
     postsInQueue: typeof row.posts_in_queue === "number" ? row.posts_in_queue : 0,
@@ -104,15 +102,17 @@ function mapDbAccountToAccount(row: Record<string, unknown>): Account {
     errorsCount: typeof row.errors_count === "number" ? row.errors_count : 0,
     defaultReelCaption: String(row.default_reel_caption || ""),
     defaultCarouselCaption: String(row.default_carousel_caption || ""),
-    defaultReelsPerDay: typeof row.default_reels_per_day === "number" ? row.default_reels_per_day : 1,
+    defaultReelsPerDay: typeof row.posts_per_day === "number" ? row.posts_per_day : typeof row.default_reels_per_day === "number" ? row.default_reels_per_day : 1,
     defaultCarouselsPerDay:
       typeof row.default_carousels_per_day === "number" ? row.default_carousels_per_day : 1,
-    defaultTimes: Array.isArray(row.default_times)
+    defaultTimes: Array.isArray(row.default_post_times)
+      ? (row.default_post_times as string[])
+      : Array.isArray(row.default_times)
       ? (row.default_times as string[])
-      : ["10:00", "15:00", "20:00"],
+      : ["09:00", "12:00", "15:00", "18:00", "21:00"],
     useRandomTimeVariation: row.use_random_time_variation !== false,
     randomVariationMinutes:
-      typeof row.random_variation_minutes === "number" ? row.random_variation_minutes : 7,
+      typeof row.random_variation_minutes === "number" ? row.random_variation_minutes : 5,
     nextScheduledAt: row.next_scheduled_at ? String(row.next_scheduled_at) : undefined,
     connectionMode: row.connection_mode === "external" ? "external" : "development",
   };
@@ -135,14 +135,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [dbStatus, setDbStatus] = useState<ServiceStatus>("not_configured");
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
 
-  // Sincronização de contas com o Supabase (filtradas por user_id via RLS)
+  // Sincronização de contas com o Supabase (filtradas por user_id via RLS em instagram_accounts)
   const refreshAccounts = useCallback(async () => {
     try {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from("accounts")
+        .from("instagram_accounts")
         .select(
-          "id, user_id, instagram_user_id, username, name, profile_picture, status, status_message, followers, new_followers_today, posts_today, posts_in_queue, posts_last_7_days, success_rate, errors_count, default_reel_caption, default_carousel_caption, default_reels_per_day, default_carousels_per_day, default_times, use_random_time_variation, random_variation_minutes, last_published_at, next_scheduled_at"
+          "id, user_id, instagram_user_id, username, name, profile_picture_url, status, status_message, followers_count, media_count, default_reel_caption, default_carousel_caption, posts_per_day, default_post_times, use_random_time_variation, random_variation_minutes, connection_mode, created_at"
         )
         .order("created_at", { ascending: false });
 
@@ -170,9 +170,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       try {
         const supabase = createClient();
         const { data, error } = await supabase
-          .from("accounts")
+          .from("instagram_accounts")
           .select(
-            "id, user_id, instagram_user_id, username, name, profile_picture, status, status_message, followers, new_followers_today, posts_today, posts_in_queue, posts_last_7_days, success_rate, errors_count, default_reel_caption, default_carousel_caption, default_reels_per_day, default_carousels_per_day, default_times, use_random_time_variation, random_variation_minutes, last_published_at, next_scheduled_at"
+            "id, user_id, instagram_user_id, username, name, profile_picture_url, status, status_message, followers_count, media_count, default_reel_caption, default_carousel_caption, posts_per_day, default_post_times, use_random_time_variation, random_variation_minutes, connection_mode, created_at"
           )
           .order("created_at", { ascending: false });
 

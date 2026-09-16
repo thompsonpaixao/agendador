@@ -72,15 +72,21 @@ export function AccountTable({ accounts }: AccountTableProps) {
                 {/* Perfil */}
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
-                    <div className="relative w-9 h-9 rounded-lg overflow-hidden border border-slate-200 shrink-0">
-                      <Image
-                        src={acc.profilePicture}
-                        alt={acc.username}
-                        width={36}
-                        height={36}
-                        className="w-full h-full object-cover"
-                        unoptimized
-                      />
+                    <div className="relative w-9 h-9 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-slate-100 flex items-center justify-center">
+                      {acc.profilePicture ? (
+                        <Image
+                          src={acc.profilePicture}
+                          alt={acc.username}
+                          width={36}
+                          height={36}
+                          className="w-full h-full object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <span className="font-bold text-slate-500 text-xs uppercase select-none">
+                          {acc.username.charAt(0) || "I"}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <Link

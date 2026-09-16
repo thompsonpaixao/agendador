@@ -76,16 +76,22 @@ export function AccountCard({ account }: AccountCardProps) {
           <div className="flex items-center gap-3 min-w-0">
             <Link
               href={`/contas/${account.id}`}
-              className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-200 shrink-0 block"
+              className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-200 shrink-0 flex items-center justify-center bg-slate-100"
             >
-              <Image
-                src={account.profilePicture}
-                alt={account.username}
-                width={48}
-                height={48}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                unoptimized
-              />
+              {account.profilePicture ? (
+                <Image
+                  src={account.profilePicture}
+                  alt={account.username}
+                  width={48}
+                  height={48}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  unoptimized
+                />
+              ) : (
+                <span className="font-bold text-slate-500 text-base uppercase select-none">
+                  {account.username.charAt(0) || "I"}
+                </span>
+              )}
             </Link>
             <div className="min-w-0">
               <Link

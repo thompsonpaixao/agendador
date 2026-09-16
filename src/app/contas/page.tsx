@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -100,6 +100,18 @@ function ContasContent() {
         case "dev_mode_restricted":
           errorTitle = "Acesso Restrito ao Modo Desenvolvedor";
           errorDesc = "O modo de desenvolvimento é restrito a administradores e desenvolvedores cadastrados na Meta.";
+          break;
+        case "server_configuration":
+          errorTitle = "Configuração do servidor ausente";
+          errorDesc = "O cliente administrativo do Supabase não pôde ser inicializado no backend.";
+          break;
+        case "account_save_failed":
+          errorTitle = "Falha ao registrar conta";
+          errorDesc = "Não foi possível registrar a conta autorizada na tabela instagram_accounts.";
+          break;
+        case "token_save_failed":
+          errorTitle = "Falha ao salvar credenciais";
+          errorDesc = "Não foi possível armazenar o token criptografado na tabela instagram_account_secrets.";
           break;
         case "external_mode_pending_review":
           errorTitle = "Modo Externo Indisponível";
