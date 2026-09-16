@@ -92,27 +92,33 @@ export function Header({ onToggleMobileSidebar }: HeaderProps) {
               </div>
 
               <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
-                {notifications.slice(0, 5).map((notif) => (
-                  <div
-                    key={notif.id}
-                    onClick={() => markNotificationAsRead(notif.id)}
-                    className={`p-3.5 text-xs transition-colors cursor-pointer flex items-start gap-3 ${
-                      notif.read ? "bg-white hover:bg-slate-50" : "bg-indigo-50/40 hover:bg-indigo-50/70"
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-800 flex items-center justify-between">
-                        <span>{notif.title}</span>
-                        {!notif.read && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-                        )}
-                      </div>
-                      <p className="text-slate-600 mt-0.5 text-[11px] leading-relaxed">
-                        {notif.message}
-                      </p>
-                    </div>
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400">
+                    Nenhuma notificação no momento
                   </div>
-                ))}
+                ) : (
+                  notifications.slice(0, 5).map((notif) => (
+                    <div
+                      key={notif.id}
+                      onClick={() => markNotificationAsRead(notif.id)}
+                      className={`p-3.5 text-xs transition-colors cursor-pointer flex items-start gap-3 ${
+                        notif.read ? "bg-white hover:bg-slate-50" : "bg-indigo-50/40 hover:bg-indigo-50/70"
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-800 flex items-center justify-between">
+                          <span>{notif.title}</span>
+                          {!notif.read && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                          )}
+                        </div>
+                        <p className="text-slate-600 mt-0.5 text-[11px] leading-relaxed">
+                          {notif.message}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="p-2 border-t border-slate-100 text-center bg-slate-50/60">

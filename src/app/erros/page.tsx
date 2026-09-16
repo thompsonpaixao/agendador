@@ -77,9 +77,15 @@ export default function ErrosPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               Erros e Alertas
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 animate-pulse">
-              {criticalCount} Críticos Pendentes
-            </span>
+            {criticalCount > 0 ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 animate-pulse">
+                {criticalCount} Críticos Pendentes
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                0 Erros Pendentes
+              </span>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Central de diagnóstico, rastreamento de falhas na Meta Graph API e recuperação com 1 clique.
@@ -181,7 +187,24 @@ export default function ErrosPage() {
             </thead>
 
             <tbody className="divide-y divide-slate-100 font-medium">
-              {filtered.map((err) => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-14 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-3">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-800">
+                        Nenhum erro registrado
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Tudo funcionando perfeitamente. Nenhuma falha de publicação ou API no momento.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((err) => (
                 <tr
                   key={err.id}
                   onClick={() => setSelectedError(err)}
@@ -277,8 +300,9 @@ export default function ErrosPage() {
                     )}
                   </td>
                 </tr>
-              ))}
-            </tbody>
+              ))
+            )}
+          </tbody>
           </table>
         </div>
       </div>

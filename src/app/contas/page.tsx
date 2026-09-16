@@ -143,7 +143,27 @@ export default function ContasPage() {
       </div>
 
       {/* Renderização de Conteúdo */}
-      {filtered.length === 0 ? (
+      {accounts.length === 0 ? (
+        <div className="p-16 text-center bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-4 text-indigo-600">
+            <Users className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">
+            Nenhuma conta conectada
+          </h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 mb-6">
+            Conecte sua primeira conta profissional ou de criador do Instagram para começar a gerenciar filas, programar publicações e acompanhar métricas.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsConnectModalOpen(true)}
+            className="inline-flex items-center gap-2 py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white text-sm font-semibold shadow-sm shadow-indigo-500/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Conectar conta do Instagram</span>
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl">
           <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800">

@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAppState } from "@/context/AppStateContext";
 import { ChevronDown, Check, Plus, Search, Layers } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import Image from "next/image";
 
 export function GlobalAccountSelector() {
+  const router = useRouter();
   const {
     accounts,
     selectedAccountId,
@@ -45,7 +47,19 @@ export function GlobalAccountSelector() {
         className="flex items-center gap-2.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-left transition-all shadow-2xs hover:border-slate-300 cursor-pointer"
         aria-expanded={isOpen}
       >
-        {selectedAccountId === "all" ? (
+        {accounts.length === 0 ? (
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500">
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-slate-800 leading-tight">
+                Nenhuma conta conectada
+              </span>
+              <span className="text-[10px] text-indigo-600 font-medium">+ Conectar conta</span>
+            </div>
+          </div>
+        ) : selectedAccountId === "all" ? (
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
               <Layers className="w-4 h-4" />
@@ -122,38 +136,43 @@ export function GlobalAccountSelector() {
           </div>
 
           <div className="max-h-64 overflow-y-auto p-1.5 space-y-0.5 scrollbar-thin">
-            {/* Opção: Todas as contas */}
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedAccountId("all");
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
-                selectedAccountId === "all"
-                  ? "bg-indigo-50 text-indigo-900 font-semibold"
-                  : "hover:bg-slate-50 text-slate-700"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg bg-indigo-100/70 text-indigo-700 flex items-center justify-center text-xs">
-                  <Layers className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <span>Todas as contas</span>
-                  <span className="text-[10px] text-slate-400 ml-1.5">
-                    ({accounts.length} perfis)
-                  </span>
-                </div>
-              </div>
-              {selectedAccountId === "all" && (
-                <Check className="w-4 h-4 text-indigo-600" />
-              )}
-            </button>
+            {accounts.length > 0 && (
+              <>
+                {/* Opção: Todas as contas */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAccountId("all");
+                    setIsOpen(false);
+                    router.push("/");
+                  }}
+                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
+                    selectedAccountId === "all"
+                      ? "bg-indigo-50 text-indigo-900 font-semibold"
+                      : "hover:bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-lg bg-indigo-100/70 text-indigo-700 flex items-center justify-center text-xs">
+                      <Layers className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span>Todas as contas</span>
+                      <span className="text-[10px] text-slate-400 ml-1.5">
+                        ({accounts.length} perfis)
+                      </span>
+                    </div>
+                  </div>
+                  {selectedAccountId === "all" && (
+                    <Check className="w-4 h-4 text-indigo-600" />
+                  )}
+                </button>
 
-            <div className="my-1 border-t border-slate-100 px-2 pt-1 text-[10px] uppercase font-semibold tracking-wider text-slate-400">
-              Contas Conectadas
-            </div>
+                <div className="my-1 border-t border-slate-100 px-2 pt-1 text-[10px] uppercase font-semibold tracking-wider text-slate-400">
+                  Contas Conectadas
+                </div>
+              </>
+            )}
 
             {filteredAccounts.map((acc) => {
               const isSelected = selectedAccountId === acc.id;
@@ -164,6 +183,7 @@ export function GlobalAccountSelector() {
                   onClick={() => {
                     setSelectedAccountId(acc.id);
                     setIsOpen(false);
+                    router.push(`/contas/${acc.id}`);
                   }}
                   className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
                     isSelected

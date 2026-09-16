@@ -101,9 +101,16 @@ export default function NotificacoesPage() {
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs divide-y divide-slate-100 overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <Bell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="text-xs text-slate-500">Nenhuma notificação encontrada.</p>
+          <div className="py-16 px-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
+              <Bell className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-bold text-slate-800">
+              Nenhuma notificação encontrada
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Você será avisado aqui sobre publicações concluídas, alertas de token e novos eventos.
+            </p>
           </div>
         ) : (
           filtered.map((notif) => (

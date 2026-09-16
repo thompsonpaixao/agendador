@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTime } from "@/lib/utils";
 
 export default function FilasReelsPage() {
   const { reelQueues, selectedAccountId, toggleQueuePause } = useAppState();
@@ -141,7 +141,7 @@ export default function FilasReelsPage() {
                           {queue.errorCount} erros
                         </span>
                       )}
-                      <span>Próxima: <strong className="text-indigo-600">Hoje às 15:00</strong></span>
+                      <span>Próxima: <strong className="text-indigo-600">{queue.nextScheduledAt ? formatTime(queue.nextScheduledAt) : "—"}</strong></span>
                     </div>
                   </div>
 

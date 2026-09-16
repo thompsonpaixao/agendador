@@ -25,7 +25,7 @@ export default function AgendaPage() {
   const { scheduledPosts, selectedAccountId, accounts } = useAppState();
 
   const [viewMode, setViewMode] = useState<"month" | "week" | "day" | "list">("month");
-  const [currentDate, setCurrentDate] = useState(new Date("2026-09-16"));
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(null);
 
   // Filtros
@@ -49,7 +49,7 @@ export default function AgendaPage() {
   };
 
   const handleToday = () => {
-    setCurrentDate(new Date("2026-09-16"));
+    setCurrentDate(new Date());
   };
 
   const monthName = currentDate.toLocaleDateString("pt-BR", {
@@ -195,7 +195,12 @@ export default function AgendaPage() {
             {Array.from({ length: 35 }, (_, index) => {
               const dayNum = index - 1; // Ajuste simplificado
               const isValidDay = dayNum > 0 && dayNum <= daysInMonth;
-              const isToday = dayNum === 16;
+              const now = new Date();
+              const isToday =
+                isValidDay &&
+                dayNum === now.getDate() &&
+                currentDate.getMonth() === now.getMonth() &&
+                currentDate.getFullYear() === now.getFullYear();
 
               const dayPosts = isValidDay
                 ? filteredPosts.filter((p) => {
@@ -260,47 +265,59 @@ export default function AgendaPage() {
       {/* Visualização em Lista */}
       {(viewMode === "list" || viewMode === "day" || viewMode === "week") && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
-          <div className="divide-y divide-slate-100">
-            {filteredPosts.map((post) => (
-              <div
-                key={post.id}
-                onClick={() => setSelectedPost(post)}
-                className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative">
-                    <Image
-                      src={post.thumbnailUrl}
-                      alt={post.title}
-                      width={48}
-                      height={56}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900">
-                        {formatDate(post.scheduledAt)} às {formatTime(post.scheduledAt)}
-                      </span>
-                      <span className="text-xs text-indigo-600 font-semibold">
-                        @{post.accountUsername}
-                      </span>
-                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
-                        {post.type}
-                      </span>
+          {filteredPosts.length === 0 ? (
+            <div className="py-16 text-center text-slate-500">
+              <CalendarIcon className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-800">
+                Nenhuma publicação agendada
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Crie uma fila de Reels ou novo Carrossel para visualizar seus horários na agenda.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {filteredPosts.map((post) => (
+                <div
+                  key={post.id}
+                  onClick={() => setSelectedPost(post)}
+                  className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative">
+                      <Image
+                        src={post.thumbnailUrl}
+                        alt={post.title}
+                        width={48}
+                        height={56}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
                     </div>
-                    <p className="text-xs text-slate-600 truncate max-w-md mt-0.5">
-                      {post.title}
-                    </p>
-                  </div>
-                </div>
 
-                <StatusBadge status={post.status} />
-              </div>
-            ))}
-          </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">
+                          {formatDate(post.scheduledAt)} às {formatTime(post.scheduledAt)}
+                        </span>
+                        <span className="text-xs text-indigo-600 font-semibold">
+                          @{post.accountUsername}
+                        </span>
+                        <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                          {post.type}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 truncate max-w-md mt-0.5">
+                        {post.title}
+                      </p>
+                    </div>
+                  </div>
+
+                  <StatusBadge status={post.status} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

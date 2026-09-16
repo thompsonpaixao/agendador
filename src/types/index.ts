@@ -23,6 +23,9 @@ export interface Account {
   defaultTimes: string[];
   useRandomTimeVariation: boolean;
   randomVariationMinutes: number;
+  nextScheduledAt?: string;
+  profileVideosCount?: number;
+  profileCarouselsCount?: number;
 }
 
 export type PostType = "reel" | "carousel";
@@ -39,6 +42,7 @@ export type PostStatus =
 
 export interface MediaItem {
   id: string;
+  accountId: string;
   name: string;
   url: string;
   thumbnailUrl: string;
@@ -48,6 +52,7 @@ export interface MediaItem {
   caption?: string;
   position: number;
   status: "ready" | "processing" | "uploaded" | "error";
+  createdAt?: string;
 }
 
 export interface ReelQueue {
@@ -85,12 +90,14 @@ export interface CarouselSlide {
 
 export interface CarouselPost {
   id: string;
+  accountId: string;
   title: string;
   position: number;
   slides: CarouselSlide[];
   caption?: string;
   scheduledAt?: string;
   status: PostStatus;
+  createdAt?: string;
 }
 
 export interface CarouselQueue {

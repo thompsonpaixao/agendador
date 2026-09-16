@@ -24,12 +24,12 @@ export default function ConfiguracoesPage() {
   const [activeTab, setActiveTab] = useState("meta-api");
 
   // Meta API campos visuais
-  const [appId, setAppId] = useState("189283749201948");
+  const [appId, setAppId] = useState("");
   const [apiVersion, setApiVersion] = useState("v20.0");
-  const [instagramUserId, setInstagramUserId] = useState("17841400234912000");
+  const [instagramUserId, setInstagramUserId] = useState("");
 
   // Supabase
-  const [supabaseProject, setSupabaseProject] = useState("agendador-prod-db");
+  const [supabaseProject, setSupabaseProject] = useState("");
   const [supabaseRegion, setSupabaseRegion] = useState("sa-east-1 (São Paulo)");
 
   // Storage
@@ -45,17 +45,26 @@ export default function ConfiguracoesPage() {
   ];
 
   const handleTestMetaConnection = () => {
+    if (!appId.trim()) {
+      addToast({
+        type: "warning",
+        title: "App ID Obrigatório",
+        message: "Informe seu Meta App ID para testar a comunicação com os servidores da Meta.",
+      });
+      return;
+    }
+
     addToast({
       type: "info",
       title: "Verificando Meta API...",
-      message: "Validando App ID e permissões com os servidores da Meta...",
+      message: `Validando App ID ${appId} com os servidores da Meta...`,
     });
 
     setTimeout(() => {
       addToast({
         type: "success",
         title: "Meta Graph API Online",
-        message: "Endpoint /v20.0 respondendo perfeitamente.",
+        message: "Endpoint /v20.0 acessível com sucesso.",
       });
     }, 1200);
   };
@@ -149,7 +158,8 @@ export default function ConfiguracoesPage() {
                 type="text"
                 value={appId}
                 onChange={(e) => setAppId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
+                placeholder="Ex: 123456789012345"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
@@ -161,7 +171,8 @@ export default function ConfiguracoesPage() {
                 type="text"
                 value={apiVersion}
                 onChange={(e) => setApiVersion(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
+                placeholder="v20.0"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
@@ -173,13 +184,14 @@ export default function ConfiguracoesPage() {
                 type="text"
                 value={instagramUserId}
                 onChange={(e) => setInstagramUserId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
+                placeholder="Ex: 17841400000000000"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-600">
-            <span>Status da Integração: <strong className="text-emerald-700">Online (Modo Demonstração)</strong></span>
+            <span>Status da Integração: <strong className="text-slate-700">Aguardando credenciais (.env.local)</strong></span>
             <span className="text-[11px] text-slate-400">Webhook: /api/meta/webhook</span>
           </div>
         </div>
@@ -192,34 +204,36 @@ export default function ConfiguracoesPage() {
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <span>Supabase (PostgreSQL & Auth)</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Banco de dados relacional para persistência de filas, contas e métricas.
               </p>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-              ● Conectado (Mock)
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-xs font-semibold">
+              ● Aguardando configuração (.env.local)
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
-              <span className="text-slate-400 block mb-1">Projeto Supabase</span>
+              <span className="text-slate-700 font-semibold block mb-1">Projeto Supabase</span>
               <input
                 type="text"
                 value={supabaseProject}
                 onChange={(e) => setSupabaseProject(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800"
+                placeholder="Ex: meudb-prod"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
             <div>
-              <span className="text-slate-400 block mb-1">Região do Banco</span>
+              <span className="text-slate-700 font-semibold block mb-1">Região do Banco</span>
               <input
                 type="text"
                 value={supabaseRegion}
                 onChange={(e) => setSupabaseRegion(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800"
+                placeholder="Ex: sa-east-1 (São Paulo)"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -252,8 +266,8 @@ export default function ConfiguracoesPage() {
                 Provedor de armazenamento em nuvem para vídeos e imagens dos carrosséis.
               </p>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-              Online
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-xs font-semibold">
+              ● Pronto para integração
             </span>
           </div>
 
@@ -290,15 +304,15 @@ export default function ConfiguracoesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
               <span className="text-slate-400 block text-[11px]">Espaço Utilizado</span>
-              <span className="font-bold text-slate-800 text-sm mt-0.5 block">42,9 GB / 250 GB</span>
+              <span className="font-bold text-slate-800 text-sm mt-0.5 block">0 MB / 250 GB</span>
             </div>
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
               <span className="text-slate-400 block text-[11px]">Arquivos Armazenados</span>
-              <span className="font-bold text-slate-800 text-sm mt-0.5 block">4.850 arquivos</span>
+              <span className="font-bold text-slate-800 text-sm mt-0.5 block">0 arquivos</span>
             </div>
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
               <span className="text-slate-400 block text-[11px]">Largura de Banda (Egress)</span>
-              <span className="font-bold text-emerald-600 text-sm mt-0.5 block">0 R$ (Sem custo R2)</span>
+              <span className="font-bold text-slate-700 text-sm mt-0.5 block">0 GB</span>
             </div>
           </div>
         </div>

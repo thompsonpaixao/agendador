@@ -10,6 +10,8 @@ import {
   ReelQueue,
   CarouselQueue,
   SystemStatus,
+  MediaItem,
+  CarouselPost,
 } from "@/types";
 import {
   MOCK_ACCOUNTS,
@@ -20,6 +22,8 @@ import {
   MOCK_REEL_QUEUES,
   MOCK_CAROUSEL_QUEUES,
   MOCK_SYSTEM_STATUS,
+  MOCK_PROFILE_MEDIA,
+  MOCK_PROFILE_CAROUSELS,
 } from "@/lib/mock-data";
 import { useToast } from "./ToastContext";
 
@@ -55,6 +59,17 @@ interface AppStateContextType {
   addCarouselQueue: (queue: Omit<CarouselQueue, "id" | "createdAt">) => void;
   toggleQueuePause: (queueId: string, type: "reel" | "carousel") => void;
 
+  // Repositório e Construtor do Perfil
+  profileMedia: MediaItem[];
+  profileCarousels: CarouselPost[];
+  addProfileMedia: (accountId: string, files: Omit<MediaItem, "id" | "accountId">[]) => void;
+  deleteProfileMedia: (accountId: string, mediaId: string) => void;
+  addProfileCarousel: (accountId: string, carousel: Omit<CarouselPost, "id" | "accountId">) => void;
+  updateProfileCarousel: (accountId: string, carousel: CarouselPost) => void;
+  deleteProfileCarousel: (accountId: string, carouselId: string) => void;
+  shuffleProfileCarousels: (accountId: string) => void;
+  updateAccountSettings: (accountId: string, settings: Partial<Account>) => void;
+
   // Status e Modais
   systemStatus: SystemStatus;
   isConnectModalOpen: boolean;
@@ -74,6 +89,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [publishedPosts, setPublishedPosts] = useState<PublishedPost[]>(MOCK_PUBLISHED_POSTS);
   const [reelQueues, setReelQueues] = useState<ReelQueue[]>(MOCK_REEL_QUEUES);
   const [carouselQueues, setCarouselQueues] = useState<CarouselQueue[]>(MOCK_CAROUSEL_QUEUES);
+  const [profileMedia, setProfileMedia] = useState<MediaItem[]>(MOCK_PROFILE_MEDIA);
+  const [profileCarousels, setProfileCarousels] = useState<CarouselPost[]>(MOCK_PROFILE_CAROUSELS);
   const [systemStatus] = useState<SystemStatus>(MOCK_SYSTEM_STATUS);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
 
@@ -308,6 +325,121 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const addProfileMedia = (accountId: string, files: Omit<MediaItem, "id" | "accountId">[]) => {
+    const newItems: MediaItem[] = files.map((file, idx) => ({
+      ...file,
+      id: `media_${Date.now()}_${idx}`,
+      accountId,
+      createdAt: new Date().toISOString(),
+    }));
+    setProfileMedia((prev) => [...newItems, ...prev]);
+    // Atualiza contador da conta
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === accountId
+          ? { ...acc, profileVideosCount: (acc.profileVideosCount || 0) + newItems.length }
+          : acc
+      )
+    );
+    addToast({
+      type: "success",
+      title: "Vídeos Adicionados ao Perfil!",
+      message: `${newItems.length} vídeo(s) foram armazenados no repositório desta conta.`,
+    });
+  };
+
+  const deleteProfileMedia = (accountId: string, mediaId: string) => {
+    setProfileMedia((prev) => prev.filter((m) => !(m.id === mediaId && m.accountId === accountId)));
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === accountId
+          ? { ...acc, profileVideosCount: Math.max(0, (acc.profileVideosCount || 1) - 1) }
+          : acc
+      )
+    );
+    addToast({
+      type: "info",
+      title: "Vídeo Removido",
+      message: "O vídeo foi excluído do repositório da conta.",
+    });
+  };
+
+  const addProfileCarousel = (accountId: string, carousel: Omit<CarouselPost, "id" | "accountId">) => {
+    const newCarousel: CarouselPost = {
+      ...carousel,
+      id: `cp_${Date.now()}`,
+      accountId,
+      createdAt: new Date().toISOString(),
+    };
+    setProfileCarousels((prev) => [newCarousel, ...prev]);
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === accountId
+          ? { ...acc, profileCarouselsCount: (acc.profileCarouselsCount || 0) + 1 }
+          : acc
+      )
+    );
+    addToast({
+      type: "success",
+      title: "Carrossel Criado com Sucesso!",
+      message: `Carrossel salvo com ${newCarousel.slides.length} slides no perfil.`,
+    });
+  };
+
+  const updateProfileCarousel = (accountId: string, carousel: CarouselPost) => {
+    setProfileCarousels((prev) =>
+      prev.map((c) => (c.id === carousel.id && c.accountId === accountId ? carousel : c))
+    );
+    addToast({
+      type: "success",
+      title: "Carrossel Atualizado",
+      message: "As alterações nos slides foram salvas.",
+    });
+  };
+
+  const deleteProfileCarousel = (accountId: string, carouselId: string) => {
+    setProfileCarousels((prev) =>
+      prev.filter((c) => !(c.id === carouselId && c.accountId === accountId))
+    );
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === accountId
+          ? { ...acc, profileCarouselsCount: Math.max(0, (acc.profileCarouselsCount || 1) - 1) }
+          : acc
+      )
+    );
+    addToast({
+      type: "info",
+      title: "Carrossel Excluído",
+      message: "O carrossel foi removido do perfil.",
+    });
+  };
+
+  const shuffleProfileCarousels = (accountId: string) => {
+    setProfileCarousels((prev) => {
+      const accountItems = prev.filter((c) => c.accountId === accountId);
+      const otherItems = prev.filter((c) => c.accountId !== accountId);
+      const shuffled = [...accountItems].sort(() => Math.random() - 0.5);
+      return [...shuffled, ...otherItems];
+    });
+    addToast({
+      type: "info",
+      title: "Ordem Embaralhada!",
+      message: "A sequência dos carrosséis deste perfil foi reorganizada.",
+    });
+  };
+
+  const updateAccountSettings = (accountId: string, settings: Partial<Account>) => {
+    setAccounts((prev) =>
+      prev.map((acc) => (acc.id === accountId ? { ...acc, ...settings } : acc))
+    );
+    addToast({
+      type: "success",
+      title: "Configurações Atualizadas",
+      message: "As preferências da conta foram salvas com sucesso.",
+    });
+  };
+
   return (
     <AppStateContext.Provider
       value={{
@@ -334,6 +466,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         addReelQueue,
         addCarouselQueue,
         toggleQueuePause,
+        profileMedia,
+        profileCarousels,
+        addProfileMedia,
+        deleteProfileMedia,
+        addProfileCarousel,
+        updateProfileCarousel,
+        deleteProfileCarousel,
+        shuffleProfileCarousels,
+        updateAccountSettings,
         systemStatus,
         isConnectModalOpen,
         setIsConnectModalOpen,

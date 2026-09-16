@@ -6,29 +6,43 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAppState } from "@/context/AppStateContext";
 import { useToast } from "@/context/ToastContext";
 import {
-  Users,
-  Send,
-  Calendar,
   Clock,
-  TrendingUp,
   Settings,
   RefreshCw,
   Pause,
   Play,
-  ExternalLink,
   Wifi,
+  Film,
+  Layers,
+  ArrowRight,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { formatNumber, formatPercent } from "@/lib/utils";
+import { formatNumber, formatDate, formatTime } from "@/lib/utils";
 
 interface AccountCardProps {
   account: Account;
 }
 
 export function AccountCard({ account }: AccountCardProps) {
-  const { toggleAccountPause, reconnectAccount } = useAppState();
+  const { toggleAccountPause, reconnectAccount, reelQueues, carouselQueues, scheduledPosts } = useAppState();
   const { addToast } = useToast();
+
+  const reelsInQueue = reelQueues
+    .filter((q) => q.accountId === account.id)
+    .reduce((acc, q) => acc + q.remainingCount, 0);
+
+  const carouselsInQueue = carouselQueues
+    .filter((q) => q.accountId === account.id)
+    .reduce((acc, q) => acc + q.remainingCount, 0);
+
+  const accountScheduled = scheduledPosts
+    .filter((p) => p.accountId === account.id && p.status === "scheduled")
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+  const nextPostText = accountScheduled.length > 0
+    ? `${formatDate(accountScheduled[0].scheduledAt)} às ${formatTime(accountScheduled[0].scheduledAt)}`
+    : "Nenhuma agendada";
 
   const handleTestConnection = () => {
     addToast({
@@ -55,21 +69,24 @@ export function AccountCard({ account }: AccountCardProps) {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between">
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group">
       <div>
         {/* Topo do Card: Avatar, @username e Status */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+            <Link
+              href={`/contas/${account.id}`}
+              className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-200 shrink-0 block"
+            >
               <Image
                 src={account.profilePicture}
                 alt={account.username}
                 width={48}
                 height={48}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 unoptimized
               />
-            </div>
+            </Link>
             <div className="min-w-0">
               <Link
                 href={`/contas/${account.id}`}
@@ -91,7 +108,7 @@ export function AccountCard({ account }: AccountCardProps) {
           </div>
         )}
 
-        {/* Informações e Métricas */}
+        {/* Informações e Métricas Obrigatórias por Perfil */}
         <div className="grid grid-cols-2 gap-3 py-3 border-y border-slate-100 text-xs">
           <div>
             <span className="text-slate-400 block text-[11px]">Seguidores</span>
@@ -105,24 +122,28 @@ export function AccountCard({ account }: AccountCardProps) {
             <span className="font-bold text-slate-800">{account.postsToday}</span>
           </div>
 
-          <div>
-            <span className="text-slate-400 block text-[11px]">Posts na fila</span>
-            <span className="font-bold text-indigo-600">
-              {account.postsInQueue}
-            </span>
+          <div className="flex items-center gap-1.5">
+            <Film className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+            <div>
+              <span className="text-slate-400 block text-[10px]">Reels na fila</span>
+              <span className="font-bold text-rose-600">{reelsInQueue}</span>
+            </div>
           </div>
 
-          <div>
-            <span className="text-slate-400 block text-[11px]">Taxa de sucesso</span>
-            <span className="font-bold text-emerald-600">
-              {formatPercent(account.successRate)}
-            </span>
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+            <div>
+              <span className="text-slate-400 block text-[10px]">Carrosséis na fila</span>
+              <span className="font-bold text-purple-600">{carouselsInQueue}</span>
+            </div>
           </div>
         </div>
 
-        <div className="py-2 text-[11px] text-slate-400 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5" />
-          <span>Última publicação: Hoje às 21:00</span>
+        <div className="py-2.5 text-[11px] text-slate-500 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 truncate">
+            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="truncate">Próxima: <strong className="text-slate-700">{nextPostText}</strong></span>
+          </div>
         </div>
       </div>
 
@@ -130,9 +151,10 @@ export function AccountCard({ account }: AccountCardProps) {
       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-1.5">
         <Link
           href={`/contas/${account.id}`}
-          className="flex-1 py-1.5 px-2.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold text-center transition-colors"
+          className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold text-center transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
         >
-          Abrir conta
+          <span>Gerenciar Perfil</span>
+          <ArrowRight className="w-3.5 h-3.5" />
         </Link>
 
         <button

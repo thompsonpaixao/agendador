@@ -51,7 +51,24 @@ export default function CarrosseisPublicadosPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium">
-            {filtered.map((post) => (
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-14 text-center text-slate-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 mb-3">
+                      <Layers className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">
+                      Nenhum carrossel publicado ainda
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                      Assim que um carrossel agendado for publicado no perfil, os slides e as métricas aparecerão aqui.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filtered.map((post) => (
               <tr key={post.id} className="hover:bg-slate-50/70 transition-colors">
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-3">
@@ -97,8 +114,9 @@ export default function CarrosseisPublicadosPage() {
                   </button>
                 </td>
               </tr>
-            ))}
-          </tbody>
+            ))
+          )}
+        </tbody>
         </table>
       </div>
     </div>

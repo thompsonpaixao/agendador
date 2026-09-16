@@ -41,7 +41,25 @@ export default function FilasCarrosseisPage() {
         </Link>
       </div>
 
-      <div className="space-y-4">
+      {filtered.length === 0 ? (
+        <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <Layers className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-800">
+            Nenhuma fila de carrosséis
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+            Não há filas ativas para a conta selecionada. Crie sua primeira sequência de carrosséis para iniciar a programação.
+          </p>
+          <Link
+            href="/carrosseis/novo"
+            className="py-2 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold inline-flex items-center gap-2 shadow-sm shadow-purple-500/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Criar Carrossel Agora</span>
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
         {filtered.map((queue) => {
           const percent = Math.round(
             (queue.publishedCount / (queue.totalCarousels || 1)) * 100
@@ -110,7 +128,8 @@ export default function FilasCarrosseisPage() {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@ import Image from "next/image";
 import { formatNumber, formatPercent } from "@/lib/utils";
 
 export default function AnalyticsPerfilPage() {
-  const { accounts, selectedAccountId, publishedPosts } = useAppState();
+  const { accounts, selectedAccountId, publishedPosts, setIsConnectModalOpen } = useAppState();
 
   const [activeAccountId, setActiveAccountId] = useState(
     selectedAccountId !== "all" ? selectedAccountId : accounts[0]?.id || ""
@@ -25,17 +25,68 @@ export default function AnalyticsPerfilPage() {
 
   const currentAccount = accounts.find((a) => a.id === activeAccountId) || accounts[0];
 
-  const followerHistory = [
-    { label: "10/09", value: currentAccount.followers - 840 },
-    { label: "11/09", value: currentAccount.followers - 690 },
-    { label: "12/09", value: currentAccount.followers - 510 },
-    { label: "13/09", value: currentAccount.followers - 380 },
-    { label: "14/09", value: currentAccount.followers - 220 },
-    { label: "15/09", value: currentAccount.followers - 95 },
-    { label: "Hoje", value: currentAccount.followers },
-  ];
+  if (accounts.length === 0 || !currentAccount) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="border-b border-slate-200 pb-5">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            Analytics por Perfil
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Performance individualizada, evolução de seguidores e top mídias por conta.
+          </p>
+        </div>
+
+        <div className="p-16 text-center bg-white border border-slate-200 rounded-2xl shadow-2xs">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-4 text-indigo-600">
+            <Users className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">
+            Nenhuma conta conectada
+          </h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 mb-6">
+            Conecte sua primeira conta do Instagram para visualizar métricas analíticas exclusivas, evolução de audiência e histórico de publicações.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsConnectModalOpen(true)}
+            className="inline-flex items-center gap-2 py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white text-sm font-semibold shadow-sm shadow-indigo-500/20 transition-all cursor-pointer"
+          >
+            <span>Conectar conta do Instagram</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const accountPosts = publishedPosts.filter((p) => p.accountId === currentAccount.id);
+  const accountViews = accountPosts.reduce((acc, p) => acc + p.views, 0);
+  const accountReach = accountPosts.reduce((acc, p) => acc + p.reach, 0);
+  const accountInteractions = accountPosts.reduce(
+    (acc, p) => acc + p.likes + p.comments + p.shares + p.saves,
+    0
+  );
+
+  const followerHistory = currentAccount.followers > 0
+    ? [
+        { label: "D-6", value: Math.max(0, currentAccount.followers - 84) },
+        { label: "D-5", value: Math.max(0, currentAccount.followers - 69) },
+        { label: "D-4", value: Math.max(0, currentAccount.followers - 51) },
+        { label: "D-3", value: Math.max(0, currentAccount.followers - 38) },
+        { label: "D-2", value: Math.max(0, currentAccount.followers - 22) },
+        { label: "Ontem", value: Math.max(0, currentAccount.followers - 9) },
+        { label: "Hoje", value: currentAccount.followers },
+      ]
+    : [
+        { label: "D-6", value: 0 },
+        { label: "D-5", value: 0 },
+        { label: "D-4", value: 0 },
+        { label: "D-3", value: 0 },
+        { label: "D-2", value: 0 },
+        { label: "Ontem", value: 0 },
+        { label: "Hoje", value: 0 },
+      ];
+
   const topReels = accountPosts.filter((p) => p.type === "reel").slice(0, 3);
   const topCarousels = accountPosts.filter((p) => p.type === "carousel").slice(0, 3);
 
@@ -98,19 +149,19 @@ export default function AnalyticsPerfilPage() {
         />
         <MetricCard
           title="Views Totais"
-          value={formatNumber(currentAccount.followers * 3.2)}
+          value={formatNumber(accountViews)}
         />
         <MetricCard
           title="Alcance"
-          value={formatNumber(currentAccount.followers * 2.5)}
+          value={formatNumber(accountReach)}
         />
         <MetricCard
           title="Interações"
-          value={formatNumber(currentAccount.followers * 0.18)}
+          value={formatNumber(accountInteractions)}
         />
         <MetricCard
           title="Posts Feitos"
-          value={currentAccount.postsLast7Days}
+          value={accountPosts.length}
         />
       </div>
 
@@ -120,7 +171,11 @@ export default function AnalyticsPerfilPage() {
           <h3 className="text-base font-bold text-slate-900">
             Crescimento de Seguidores (Últimos 7 dias)
           </h3>
-          <span className="text-xs text-emerald-600 font-semibold">+840 seguidores</span>
+          {currentAccount.newFollowersToday > 0 && (
+            <span className="text-xs text-emerald-600 font-semibold">
+              +{currentAccount.newFollowersToday} hoje
+            </span>
+          )}
         </div>
         <SimpleLineChart data={followerHistory} height={200} color="#10b981" />
       </div>

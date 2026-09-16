@@ -110,7 +110,24 @@ export default function ReelsPublicadosPage() {
             </thead>
 
             <tbody className="divide-y divide-slate-100 font-medium">
-              {filtered.map((post) => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="py-14 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 mb-3">
+                        <Film className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-800">
+                        Nenhum Reel publicado ainda
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                        Quando sua primeira fila de Reels for processada, os vídeos postados e suas métricas aparecerão aqui.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((post) => (
                 <tr key={post.id} className="hover:bg-slate-50/70 transition-colors">
                   {/* Mídia & Perfil */}
                   <td className="px-4 py-3.5">
@@ -186,8 +203,9 @@ export default function ReelsPublicadosPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
+              ))
+            )}
+          </tbody>
           </table>
         </div>
       </div>
