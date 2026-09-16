@@ -47,10 +47,9 @@ export async function GET(request: Request) {
   // 3. Credenciais da Meta exclusivamente server-side
   const metaAppId = process.env.META_APP_ID;
   const metaAppSecret = process.env.META_APP_SECRET;
-  const metaRedirectUri =
-    process.env.META_REDIRECT_URI || `${origin}/api/instagram/callback`;
+  const metaRedirectUri = process.env.META_REDIRECT_URI;
 
-  if (!metaAppId || !metaAppSecret) {
+  if (!metaAppId || !metaAppSecret || !metaRedirectUri) {
     return NextResponse.redirect(`${origin}/contas?error=meta_not_configured`);
   }
 

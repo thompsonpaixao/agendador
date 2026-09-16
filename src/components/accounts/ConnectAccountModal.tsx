@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
@@ -29,8 +29,8 @@ export function ConnectAccountModal() {
     if (mode === "external") return;
     if (!isDevOrAdmin) return;
     setIsLoading(true);
-    // Redireciona para o fluxo OAuth oficial server-side
-    window.location.href = `/api/instagram/auth?mode=${mode}`;
+    // Redireciona para o endpoint unificado server-side (Desktop e Mobile idênticos)
+    window.location.href = `/api/instagram/connect?mode=${mode}`;
   };
 
   const handleClose = () => {
@@ -173,6 +173,14 @@ export function ConnectAccountModal() {
                       </code>
                       <span className="text-slate-600">
                         Publicação e agendamento automático de Reels, Carrosséis e fotos no feed.
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-1.5 py-0.5 rounded bg-indigo-100/80 text-indigo-700 font-mono text-[10px] shrink-0 font-bold">
+                        instagram_business_manage_insights
+                      </code>
+                      <span className="text-slate-600">
+                        Leitura de métricas e alcance oficiais de publicações e perfil.
                       </span>
                     </li>
                   </ul>

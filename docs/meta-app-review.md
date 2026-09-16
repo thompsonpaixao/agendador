@@ -1,4 +1,4 @@
-﻿# Guia de Preparação e Submissão: Meta App Review — AgendadorAuto
+# Guia de Preparação e Submissão: Meta App Review — AgendadorAuto
 
 Este documento contém o checklist oficial, instruções de submissão e roteiros de gravação de screencasts para a aprovação do **AgendadorAuto** no processo de **Meta App Review** para obtenção de **Advanced Access** nas permissões da Instagram Graph API.
 
@@ -36,6 +36,13 @@ Este documento contém o checklist oficial, instruções de submissão e roteiro
   - `POST /{ig-user-id}/media` (criação do container com `media_type: "REELS"` ou `"CAROUSEL"`)
   - `GET /{container-id}?fields=status_code` (verificação do status de transcodificação)
   - `POST /{ig-user-id}/media_publish` (disparo oficial da publicação)
+
+### Permissão 3: `instagram_business_manage_insights`
+- **Por que o aplicativo precisa dessa permissão?**
+  > "Permite que os criadores e gestores visualizem métricas analíticas e de desempenho oficiais dos seus posts (alcance, visualizações, engajamento e retenção) no painel de analytics do AgendadorAuto."
+- **Recursos utilizados:**
+  - `GET /{ig-media-id}/insights?metric=reach,impressions,saved,shares,video_views`
+  - `GET /{ig-user-id}/insights?metric=reach,profile_views,follower_count`
 
 ---
 
