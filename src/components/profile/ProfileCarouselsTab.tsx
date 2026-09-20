@@ -33,8 +33,11 @@ import {
   CheckSquare,
   Square,
   X,
+  RotateCcw,
+  Eye,
 } from "lucide-react";
 import Image from "next/image";
+import { CarouselQueueDetailsModal } from "@/components/queues/CarouselQueueDetailsModal";
 
 interface ProfileCarouselsTabProps {
   account: Account;
@@ -56,11 +59,13 @@ export function ProfileCarouselsTab({
     toggleQueuePause,
     refreshCarousels,
     refreshScheduledPosts,
+    refreshCarouselQueues,
+    deleteCarouselQueue,
     profileMedia,
   } = useAppState();
   const { addToast } = useToast();
 
-  const [subTab, setSubTab] = useState<"repositorio" | "novo" | "filas">("repositorio");
+  const [subTab, setSubTab] = useState<"repositorio" | "novo" | "filas_ativas" | "filas_finalizadas">("repositorio");
 
   // Filtros do Repositório de Carrosséis
   const [repoFilter, setRepoFilter] = useState<"todos" | "disponiveis" | "em_fila" | "agendados" | "publicados" | "erro">("todos");
@@ -71,10 +76,22 @@ export function ProfileCarouselsTab({
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
   const [isCreatingQueue, setIsCreatingQueue] = useState(false);
   const [queueStartDate, setQueueStartDate] = useState(new Date().toISOString().split("T")[0]);
+  const [carouselsPerDay, setCarouselsPerDay] = useState<number>(1);
   const [queueDailyTimes, setQueueDailyTimes] = useState<string[]>(["18:00"]);
   const [queueCustomTime, setQueueCustomTime] = useState("12:00");
   const [queueUseVariation, setQueueUseVariation] = useState(true);
   const [queueVariationMinutes, setQueueVariationMinutes] = useState(5);
+
+  // Reordenação de Carrosséis dentro do Modal de Fila
+  const [orderedCarouselIds, setOrderedCarouselIds] = useState<string[]>([]);
+  const [originalCarouselIds, setOriginalCarouselIds] = useState<string[]>([]);
+  const [draggedCarouselIndex, setDraggedCarouselIndex] = useState<number | null>(null);
+  const [dragOverCarouselIndex, setDragOverCarouselIndex] = useState<number | null>(null);
+
+  // Detalhes e Ações de Filas
+  const [selectedQueueForDetails, setSelectedQueueForDetails] = useState<string | null>(null);
+  const [queueToDelete, setQueueToDelete] = useState<CarouselQueue | null>(null);
+  const [isDeletingQueue, setIsDeletingQueue] = useState(false);
 
   // Estado do Construtor de Carrossel
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -245,18 +262,73 @@ export function ProfileCarouselsTab({
     setSelectedCarouselIds([]);
   };
 
-  const handleAddCustomTime = () => {
-    if (!queueCustomTime || queueDailyTimes.includes(queueCustomTime)) return;
-    setQueueDailyTimes((prev) => [...prev, queueCustomTime].sort());
+  const handleOpenQueueModal = () => {
+    if (selectedCarouselIds.length === 0) return;
+    setOrderedCarouselIds([...selectedCarouselIds]);
+    setOriginalCarouselIds([...selectedCarouselIds]);
+    setCarouselsPerDay(1);
+    setQueueDailyTimes(["18:00"]);
+    setIsQueueModalOpen(true);
   };
 
-  const handleRemoveDailyTime = (timeToRemove: string) => {
-    if (queueDailyTimes.length <= 1) return;
-    setQueueDailyTimes((prev) => prev.filter((t) => t !== timeToRemove));
+  const handleCarouselsPerDayChange = (newCount: number) => {
+    const val = Math.max(1, Math.min(newCount, 24));
+    setCarouselsPerDay(val);
+    setQueueDailyTimes((prev) => {
+      if (prev.length === val) return prev;
+      if (prev.length < val) {
+        const defaultHours = ["12:00", "18:00", "20:00", "09:00", "15:00", "21:00", "08:00", "16:00"];
+        const added = Array.from({ length: val - prev.length }, (_, i) => {
+          return defaultHours[(prev.length + i) % defaultHours.length] || "12:00";
+        });
+        return [...prev, ...added];
+      }
+      return prev.slice(0, val);
+    });
+  };
+
+  const handleEditQueueTime = (index: number, newTime: string) => {
+    setQueueDailyTimes((prev) => {
+      const updated = [...prev];
+      updated[index] = newTime;
+      return updated;
+    });
+  };
+
+  const handleShuffleModal = () => {
+    setOrderedCarouselIds((prev) => [...prev].sort(() => Math.random() - 0.5));
+  };
+
+  const handleRestoreOrderModal = () => {
+    setOrderedCarouselIds([...originalCarouselIds]);
+  };
+
+  const handleCarouselDropModal = (targetIndex: number) => {
+    if (draggedCarouselIndex === null || draggedCarouselIndex === targetIndex) return;
+    setOrderedCarouselIds((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(draggedCarouselIndex, 1);
+      updated.splice(targetIndex, 0, moved);
+      return updated;
+    });
+    setDraggedCarouselIndex(null);
+    setDragOverCarouselIndex(null);
+  };
+
+  const handleMoveCarouselModal = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= orderedCarouselIds.length) return;
+    setOrderedCarouselIds((prev) => {
+      const updated = [...prev];
+      const temp = updated[targetIndex];
+      updated[targetIndex] = updated[index];
+      updated[index] = temp;
+      return updated;
+    });
   };
 
   const handleCreateCarouselQueue = async () => {
-    if (selectedCarouselIds.length === 0) return;
+    if (orderedCarouselIds.length === 0) return;
     setIsCreatingQueue(true);
     try {
       const res = await fetch("/api/carousels/queue", {
@@ -264,7 +336,7 @@ export function ProfileCarouselsTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           accountId: account.id,
-          carouselIds: selectedCarouselIds,
+          carouselIds: orderedCarouselIds,
           startDate: queueStartDate,
           dailyTimes: queueDailyTimes,
           useRandomVariation: queueUseVariation,
@@ -280,13 +352,15 @@ export function ProfileCarouselsTab({
       addToast({
         type: "success",
         title: "Fila de Carrosséis Criada!",
-        message: data.message || `${selectedCarouselIds.length} carrosséis foram programados com sucesso.`,
+        message: data.message || `${orderedCarouselIds.length} carrosséis foram programados com sucesso.`,
       });
 
       setSelectedCarouselIds([]);
       setIsQueueModalOpen(false);
       await refreshCarousels(account.id);
+      await refreshCarouselQueues(account.id);
       await refreshScheduledPosts(account.id);
+      setSubTab("filas_ativas");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
       addToast({
@@ -296,6 +370,31 @@ export function ProfileCarouselsTab({
       });
     } finally {
       setIsCreatingQueue(false);
+    }
+  };
+
+  const handleExecuteDeleteQueue = async () => {
+    if (!queueToDelete) return;
+    setIsDeletingQueue(true);
+    try {
+      await deleteCarouselQueue(queueToDelete.id);
+      setQueueToDelete(null);
+      await refreshCarouselQueues(account.id);
+      await refreshCarousels(account.id);
+      await refreshScheduledPosts(account.id);
+      addToast({
+        type: "success",
+        title: "Fila Excluída",
+        message: "A fila e os agendamentos futuros foram removidos com sucesso.",
+      });
+    } catch (err: unknown) {
+      addToast({
+        type: "error",
+        title: "Erro ao Excluir Fila",
+        message: err instanceof Error ? err.message : "Não foi possível excluir a fila.",
+      });
+    } finally {
+      setIsDeletingQueue(false);
     }
   };
 
@@ -418,6 +517,16 @@ export function ProfileCarouselsTab({
     });
   }, [accountCarousels, repoFilter, repoSearch]);
 
+  const activeQueues = useMemo(() => {
+    return accountQueues.filter((q) => q.status === "active" || q.status === "paused");
+  }, [accountQueues]);
+
+  const finishedQueues = useMemo(() => {
+    return accountQueues.filter(
+      (q) => q.status === "completed" || q.status === "completed_with_errors" || q.status === "cancelled"
+    );
+  }, [accountQueues]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Sub-navegação interna de Carrosséis */}
@@ -451,15 +560,28 @@ export function ProfileCarouselsTab({
 
           <button
             type="button"
-            onClick={() => setSubTab("filas")}
+            onClick={() => setSubTab("filas_ativas")}
             className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              subTab === "filas"
+              subTab === "filas_ativas"
                 ? "bg-white text-purple-600 shadow-2xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Filas ({accountQueues.length})</span>
+            <span>Filas Ativas ({activeQueues.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab("filas_finalizadas")}
+            className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              subTab === "filas_finalizadas"
+                ? "bg-white text-purple-600 shadow-2xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Filas Finalizadas ({finishedQueues.length})</span>
           </button>
         </div>
 
@@ -584,7 +706,7 @@ export function ProfileCarouselsTab({
 
               <button
                 type="button"
-                onClick={() => setIsQueueModalOpen(true)}
+                onClick={handleOpenQueueModal}
                 className="py-1.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm shadow-purple-500/20 cursor-pointer"
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -1024,78 +1146,246 @@ export function ProfileCarouselsTab({
         </form>
       )}
 
-      {/* SUB-ABA 3: FILAS DE CARROSSÉIS */}
-      {subTab === "filas" && (
+      {/* SUB-ABA 3: FILAS ATIVAS DE CARROSSÉIS */}
+      {subTab === "filas_ativas" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">
-              Filas de Carrosséis de @{account.username}
-            </h3>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Filas Ativas de Carrosséis (@{account.username})
+              </h3>
+              <p className="text-xs text-slate-500">
+                Filas em andamento ou pausadas com publicações programadas.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSubTab("repositorio")}
+              className="py-1.5 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nova Fila</span>
+            </button>
           </div>
 
-          {accountQueues.length === 0 ? (
-            <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl">
-              <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          {activeQueues.length === 0 ? (
+            <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 mx-auto">
+                <Layers className="w-6 h-6" />
+              </div>
               <h4 className="text-sm font-bold text-slate-800">
                 Nenhuma fila de carrosséis ativa
               </h4>
-              <p className="text-xs text-slate-400 mt-1 mb-3">
-                Crie um carrossel no repositório para iniciar sua programação.
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Selecione carrosséis no Repositório para criar uma fila com distribuição diária e horários automáticos.
               </p>
               <button
                 type="button"
-                onClick={handleStartNew}
-                className="py-1.5 px-3.5 rounded-xl bg-purple-600 text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs"
+                onClick={() => setSubTab("repositorio")}
+                className="py-1.5 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Criar Carrossel</span>
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>Ir para Repositório</span>
               </button>
             </div>
           ) : (
             <div className="space-y-3">
-              {accountQueues.map((queue) => {
-                const percent = Math.round((queue.publishedCount / (queue.totalCarousels || 1)) * 100);
+              {activeQueues.map((queue) => {
+                const total = queue.totalCarousels || 1;
+                const percent = Math.round((queue.publishedCount / total) * 100);
+                const isPaused = queue.status === "paused";
+
                 return (
                   <div
                     key={queue.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-3"
+                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4 hover:border-slate-300 transition-all"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <h4 className="font-bold text-slate-900 text-sm">{queue.name}</h4>
                         <StatusBadge status={queue.status} />
                       </div>
-                      <span className="text-xs text-slate-400">
-                        {formatDate(queue.createdAt)}
-                      </span>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Iniciada em {formatDate(queue.createdAt)}</span>
+                        {queue.estimatedFinishAt && (
+                          <>
+                            <span>•</span>
+                            <span className="font-medium text-purple-700">
+                              Término estimado: {formatDate(queue.estimatedFinishAt)}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-slate-700">
                           {queue.publishedCount} de {queue.totalCarousels} publicados ({percent}%)
                         </span>
-                        <span className="text-slate-500">
-                          Restantes: <strong className="text-slate-800">{queue.remainingCount}</strong>
-                        </span>
+                        <div className="flex items-center gap-3 text-slate-500 text-xs">
+                          <span>Restantes: <strong className="text-slate-800">{queue.remainingCount}</strong></span>
+                          {queue.errorCount > 0 && (
+                            <span className="text-rose-600 font-semibold">
+                              Erros: {queue.errorCount}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                         <div
-                          className="bg-purple-600 h-full rounded-full transition-all"
+                          className={`h-full rounded-full transition-all ${
+                            isPaused ? "bg-amber-400" : "bg-purple-600"
+                          }`}
                           style={{ width: `${percent}%` }}
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-end">
-                      <button
-                        type="button"
-                        onClick={() => toggleQueuePause(queue.id, "carousel")}
-                        className="py-1 px-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5"
-                      >
-                        {queue.status === "paused" ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
-                        <span>{queue.status === "paused" ? "Reativar" : "Pausar"}</span>
-                      </button>
+                    <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-[11px] text-slate-500">
+                        {queue.dailyTimes?.length || 1} postagens por dia • Horários: {queue.dailyTimes?.join(", ") || "18:00"}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedQueueForDetails(queue.id)}
+                          className="py-1.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Ver detalhes</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleQueuePause(queue.id, "carousel")}
+                          className={`py-1.5 px-3 rounded-xl border text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                            isPaused
+                              ? "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700"
+                              : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+                          <span>{isPaused ? "Reativar" : "Pausar"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setQueueToDelete(queue)}
+                          className="py-1.5 px-2.5 rounded-xl border border-slate-200 hover:bg-rose-50 text-slate-400 hover:text-rose-600 text-xs font-semibold cursor-pointer transition-colors"
+                          title="Excluir fila"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SUB-ABA 4: FILAS FINALIZADAS DE CARROSSÉIS */}
+      {subTab === "filas_finalizadas" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Filas Finalizadas de Carrosséis (@{account.username})
+              </h3>
+              <p className="text-xs text-slate-500">
+                Histórico completo de filas de carrosséis concluídas ou encerradas.
+              </p>
+            </div>
+          </div>
+
+          {finishedQueues.length === 0 ? (
+            <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mx-auto">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-800">
+                Nenhuma fila finalizada até o momento
+              </h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Quando todas as postagens de uma fila forem concluídas, ela aparecerá automaticamente neste histórico.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {finishedQueues.map((queue) => {
+                const total = queue.totalCarousels || 1;
+                const percent = Math.round((queue.publishedCount / total) * 100);
+
+                return (
+                  <div
+                    key={queue.id}
+                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4 opacity-90 hover:opacity-100 transition-all"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-slate-900 text-sm">{queue.name}</h4>
+                        <StatusBadge status={queue.status} />
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Iniciada em {formatDate(queue.createdAt)}</span>
+                        {queue.estimatedFinishAt && (
+                          <>
+                            <span>•</span>
+                            <span>Finalizada em {formatDate(queue.estimatedFinishAt)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-700">
+                          {queue.publishedCount} de {queue.totalCarousels} publicados ({percent}%)
+                        </span>
+                        {queue.errorCount > 0 && (
+                          <span className="text-rose-600 font-semibold text-xs">
+                            {queue.errorCount} postagens com falha
+                          </span>
+                        )}
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            queue.errorCount > 0 ? "bg-amber-500" : "bg-teal-600"
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">
+                        {queue.totalCarousels} carrosséis programados
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedQueueForDetails(queue.id)}
+                          className="py-1.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Ver detalhes</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setQueueToDelete(queue)}
+                          className="py-1.5 px-2.5 rounded-xl border border-slate-200 hover:bg-rose-50 text-slate-400 hover:text-rose-600 text-xs font-semibold cursor-pointer transition-colors"
+                          title="Excluir histórico da fila"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1219,7 +1509,7 @@ export function ProfileCarouselsTab({
           onClose={() => !isCreatingQueue && setIsQueueModalOpen(false)}
           preventClose={isCreatingQueue}
           title="Criar Fila de Carrosséis"
-          description={`Agendar ${selectedCarouselIds.length} carrossel(is) para @${account.username}`}
+          description={`Agendar ${orderedCarouselIds.length} carrossel(is) para @${account.username}`}
           maxWidth="lg"
         >
           <div className="space-y-4">
@@ -1246,74 +1536,155 @@ export function ProfileCarouselsTab({
               />
             </div>
 
-            {/* Presets de Horários Diários */}
+            {/* Quantidade por Dia */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Quantidade de carrosséis por dia
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  max={orderedCarouselIds.length || 24}
+                  value={carouselsPerDay}
+                  onChange={(e) => handleCarouselsPerDayChange(parseInt(e.target.value) || 1)}
+                  className="w-20 p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 text-center focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                />
+                <span className="text-xs text-slate-500">
+                  {carouselsPerDay === 1 ? "1 carrossel por dia" : `${carouselsPerDay} carrosséis por dia`}
+                </span>
+              </div>
+            </div>
+
+            {/* Horários Diários Diretamente Editáveis */}
             <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">
+                Horários diários de publicação ({queueDailyTimes.length} {queueDailyTimes.length === 1 ? "horário" : "horários"})
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Clique diretamente em cada campo para digitar o horário desejado (ex: 06:00, 18:00).
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {queueDailyTimes.map((time, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                    <span className="text-[11px] font-bold text-purple-700 shrink-0">#{idx + 1}</span>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(e) => handleEditQueueTime(idx, e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg p-1 text-xs font-mono font-bold text-slate-800 text-center focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      required
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reordenação Visual dos Carrosséis com Drag & Drop */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-700 block">
-                  Horários Diários de Publicação
-                </label>
-                <div className="flex items-center gap-1">
+                <span className="text-xs font-semibold text-slate-700">
+                  Ordem de Publicação dos Carrosséis ({orderedCarouselIds.length})
+                </span>
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setQueueDailyTimes(["18:00"])}
-                    className="text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium"
+                    onClick={handleShuffleModal}
+                    className="py-1 px-2.5 rounded-lg border border-purple-200 hover:bg-purple-50 text-purple-700 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Embaralhar a ordem dos carrosséis nesta fila"
                   >
-                    1x / dia
+                    <Shuffle className="w-3 h-3" />
+                    <span>Embaralhar Ordem</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setQueueDailyTimes(["12:00", "18:00"])}
-                    className="text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium"
+                    onClick={handleRestoreOrderModal}
+                    className="py-1 px-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Restaurar a sequência original da seleção"
                   >
-                    2x / dia
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQueueDailyTimes(["10:00", "15:00", "20:00"])}
-                    className="text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium"
-                  >
-                    3x / dia
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Restaurar Ordem Original</span>
                   </button>
                 </div>
               </div>
+              <p className="text-[11px] text-slate-400">
+                Arraste para reposicionar ou use os botões acima para ajustar a sequência de postagens.
+              </p>
 
-              {/* Tags de horários atuais */}
-              <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                {queueDailyTimes.map((time) => (
-                  <span
-                    key={time}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-mono font-bold text-slate-800 shadow-2xs"
-                  >
-                    <Clock className="w-3 h-3 text-purple-600" />
-                    <span>{time}</span>
-                    {queueDailyTimes.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDailyTime(time)}
-                        className="text-slate-400 hover:text-rose-600 ml-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
+              <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                {orderedCarouselIds.map((cId, idx) => {
+                  const cItem = accountCarousels.find((c) => c.id === cId);
+                  if (!cItem) return null;
+                  const cover = cItem.slides[0];
+                  return (
+                    <div
+                      key={cId}
+                      draggable
+                      onDragStart={() => setDraggedCarouselIndex(idx)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (dragOverCarouselIndex !== idx) setDragOverCarouselIndex(idx);
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverCarouselIndex === idx) setDragOverCarouselIndex(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        handleCarouselDropModal(idx);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedCarouselIndex(null);
+                        setDragOverCarouselIndex(null);
+                      }}
+                      className={`flex items-center justify-between p-2 rounded-xl border bg-white transition-all cursor-grab active:cursor-grabbing ${
+                        dragOverCarouselIndex === idx
+                          ? "border-purple-500 ring-2 ring-purple-200 bg-purple-50/50"
+                          : "border-slate-200 hover:border-slate-300"
+                      } ${draggedCarouselIndex === idx ? "opacity-40" : ""}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-md bg-purple-100 text-purple-800 text-[11px] font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+                          {cover ? (
+                            <Image src={cover.url} alt={cItem.title} fill className="object-cover" unoptimized />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-slate-300">
+                              <ImageIcon className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">{cItem.title}</p>
+                          <span className="text-[10px] text-slate-400">{cItem.slides.length} slides</span>
+                        </div>
+                      </div>
 
-              {/* Adicionar horário personalizado */}
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="time"
-                  value={queueCustomTime}
-                  onChange={(e) => setQueueCustomTime(e.target.value)}
-                  className="p-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCustomTime}
-                  className="px-3 py-1.5 rounded-xl border border-purple-200 hover:bg-purple-50 text-purple-700 text-xs font-semibold cursor-pointer"
-                >
-                  Adicionar Horário
-                </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveCarouselModal(idx, -1)}
+                          className="p-1 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 cursor-pointer"
+                          title="Mover para cima"
+                        >
+                          <ArrowLeft className="w-3 h-3 rotate-90" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === orderedCarouselIds.length - 1}
+                          onClick={() => handleMoveCarouselModal(idx, 1)}
+                          className="p-1 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 cursor-pointer"
+                          title="Mover para baixo"
+                        >
+                          <ArrowRight className="w-3 h-3 rotate-90" />
+                        </button>
+                        <GripVertical className="w-3.5 h-3.5 text-slate-300 ml-1" />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -1352,7 +1723,7 @@ export function ProfileCarouselsTab({
                 <span>Resumo da Distribuição:</span>
               </div>
               <p>
-                Os <strong>{selectedCarouselIds.length}</strong> carrosséis selecionados serão distribuídos sequencialmente nos horários definidos (1 carrossel por postagem), iniciando em <strong>{formatDate(queueStartDate)}</strong>.
+                Os <strong>{orderedCarouselIds.length}</strong> carrosséis selecionados serão distribuídos a <strong>{carouselsPerDay} por dia</strong> durante <strong>{Math.ceil(orderedCarouselIds.length / carouselsPerDay)} dias</strong>, iniciando em <strong>{formatDate(queueStartDate)}</strong>.
               </p>
             </div>
 
@@ -1368,12 +1739,61 @@ export function ProfileCarouselsTab({
               </button>
               <button
                 type="button"
-                disabled={isCreatingQueue || selectedCarouselIds.length === 0}
+                disabled={isCreatingQueue || orderedCarouselIds.length === 0}
                 onClick={handleCreateCarouselQueue}
                 className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isCreatingQueue && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>{isCreatingQueue ? "Agendando Fila..." : `Agendar ${selectedCarouselIds.length} Carrosséis`}</span>
+                <span>{isCreatingQueue ? "Agendando Fila..." : `Agendar ${orderedCarouselIds.length} Carrosséis`}</span>
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal de Detalhes da Fila de Carrosséis */}
+      <CarouselQueueDetailsModal
+        queueId={selectedQueueForDetails}
+        isOpen={Boolean(selectedQueueForDetails)}
+        onClose={() => setSelectedQueueForDetails(null)}
+      />
+
+      {/* Modal de Confirmação para Excluir Fila de Carrosséis */}
+      {queueToDelete && (
+        <Modal
+          isOpen={Boolean(queueToDelete)}
+          onClose={() => !isDeletingQueue && setQueueToDelete(null)}
+          title="Excluir Fila de Carrosséis"
+          description={`Fila: ${queueToDelete.name}`}
+          maxWidth="md"
+        >
+          <div className="space-y-4">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+              <p className="font-semibold flex items-center gap-1 text-amber-800">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                Aviso sobre a exclusão da fila:
+              </p>
+              <p>
+                A fila e todas as publicações ainda pendentes/agendadas associadas a ela serão canceladas. Os carrosséis originais e mídias permanecerão preservados no seu repositório.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeletingQueue}
+                onClick={() => setQueueToDelete(null)}
+                className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingQueue}
+                onClick={handleExecuteDeleteQueue}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeletingQueue && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isDeletingQueue ? "Excluindo..." : "Sim, excluir fila"}</span>
               </button>
             </div>
           </div>

@@ -110,7 +110,34 @@ export async function DELETE(
       );
     }
 
-    // 4. Remove arquivos físicos do Supabase Storage
+    const { searchParams } = new URL(request.url);
+    const isPermanent = searchParams.get("permanent") === "true";
+
+    if (!isPermanent) {
+      // Soft-delete: Move para a Lixeira
+      const { error: updateError } = await supabaseAdmin
+        .from("media")
+        .update({
+          deleted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", mediaId)
+        .eq("user_id", user.id);
+
+      if (updateError) {
+        return NextResponse.json(
+          { success: false, message: `Erro ao mover mídia para a Lixeira: ${updateError.message}` },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Mídia "${mediaItem.original_name}" movida para a Lixeira com sucesso.`,
+      });
+    }
+
+    // 4. Remove arquivos físicos do Supabase Storage (Exclusão Permanente)
     const filesToRemove: string[] = [];
     if (mediaItem.storage_path) filesToRemove.push(mediaItem.storage_path);
     if (mediaItem.thumbnail_url && mediaItem.thumbnail_url.startsWith("users/")) {
@@ -127,7 +154,7 @@ export async function DELETE(
       }
     }
 
-    // 5. Remove registro do banco
+    // 5. Remove registro permanentemente do banco
     const { error: deleteError } = await supabaseAdmin
       .from("media")
       .delete()
@@ -143,7 +170,7 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Mídia "${mediaItem.original_name}" excluída com sucesso.`,
+      message: `Mídia "${mediaItem.original_name}" excluída permanentemente.`,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Erro desconhecido";

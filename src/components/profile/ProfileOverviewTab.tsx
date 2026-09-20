@@ -65,9 +65,25 @@ export function ProfileOverviewTab({
     ? `${formatDate(upcomingPosts[0].scheduledAt)} às ${formatTime(upcomingPosts[0].scheduledAt)}`
     : "Nenhuma agendada";
 
-  const successRateText = account.successRate != null
-    ? formatPercent(account.successRate)
-    : "—";
+  // Taxa de Sucesso Dinâmica da Conta (apenas concluídas: publicações bem-sucedidas vs falhas reais não recuperadas)
+  const accountPublished = publishedPosts.filter((p) => p.accountId === account.id);
+  const accountUnrecoveredFailed = scheduledPosts.filter((p) => {
+    if (p.status !== "error" && (p.status as string) !== "failed") return false;
+    const wasPublished = accountPublished.some((pub) => {
+      if (p.mediaId && pub.mediaId === p.mediaId) return true;
+      if (p.carouselId && pub.carouselId === p.carouselId) return true;
+      return false;
+    });
+    return !wasPublished;
+  });
+
+  const totalResolved = accountPublished.length + accountUnrecoveredFailed.length;
+  const successRateText =
+    totalResolved > 0
+      ? `${((accountPublished.length / totalResolved) * 100).toFixed(1).replace(".", ",")}%`
+      : account.successRate != null
+      ? formatPercent(account.successRate)
+      : "—";
 
   return (
     <div className="space-y-6">

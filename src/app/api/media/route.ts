@@ -25,6 +25,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get("accountId");
+    const isTrash = searchParams.get("trash") === "true";
 
     const supabaseAdmin = createAdminClient();
     if (!supabaseAdmin) {
@@ -40,6 +41,12 @@ export async function GET(request: Request) {
       .eq("user_id", user.id)
       .neq("retention_status", "deleted")
       .order("created_at", { ascending: false });
+
+    if (isTrash) {
+      query = query.not("deleted_at", "is", null);
+    } else {
+      query = query.is("deleted_at", null);
+    }
 
     if (accountId && accountId !== "all") {
       query = query.eq("instagram_account_id", accountId);
@@ -171,6 +178,7 @@ export async function GET(request: Request) {
           createdAt: item.created_at,
           deleteAfter: item.delete_after,
           publishedAt: item.published_at,
+          deletedAt: item.deleted_at,
           relatedPostId: sp?.id,
           queueId: qi?.queueId,
           queueName: qi?.queueName,

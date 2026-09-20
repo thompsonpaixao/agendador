@@ -80,11 +80,21 @@ export default function DashboardPage() {
 
   const postsWithErrors = filteredErrors.length;
 
-  // Taxa de Sucesso Real baseada nas tentativas reais
-  const totalAttempts = filteredPublished.length + postsWithErrors;
+  // Taxa de Sucesso Real baseada apenas em publicações concluídas (sucesso vs falhas reais não recuperadas)
+  const successCount = filteredPublished.length;
+  const unrecoveredFailedPosts = filteredScheduled.filter((p) => {
+    if (p.status !== "error" && (p.status as string) !== "failed") return false;
+    const wasPublished = filteredPublished.some((pub) => {
+      if (p.mediaId && pub.mediaId === p.mediaId) return true;
+      if (p.carouselId && pub.carouselId === p.carouselId) return true;
+      return false;
+    });
+    return !wasPublished;
+  });
+  const totalResolved = successCount + unrecoveredFailedPosts.length;
   const successRateText =
-    totalAttempts > 0
-      ? `${((filteredPublished.length / totalAttempts) * 100).toFixed(1).replace(".", ",")}%`
+    totalResolved > 0
+      ? `${((successCount / totalResolved) * 100).toFixed(1).replace(".", ",")}%`
       : "—";
 
   const reelsInQueue = selectedAccount
@@ -413,38 +423,53 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {accounts.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 pr-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-200 shrink-0">
-                          <Image
-                            src={acc.profilePicture}
-                            alt={acc.username}
-                            width={32}
-                            height={32}
-                            className="w-full h-full object-cover"
-                            unoptimized
-                          />
+                {accounts.map((acc) => {
+                  const accPub = publishedPosts.filter((p) => p.accountId === acc.id);
+                  const accTodayCount = accPub.filter((p) => {
+                    if (!p.publishedAt) return false;
+                    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(p.publishedAt)) === todaySP;
+                  }).length;
+                  const accSched = scheduledPosts.filter((p) => p.accountId === acc.id);
+                  const accInQueueCount = accSched.filter((p) => p.status === "scheduled").length;
+                  const accUnrecCount = accSched.filter((p) => {
+                    if (p.status !== "error" && (p.status as string) !== "failed") return false;
+                    return !accPub.some((pub) => (p.mediaId && pub.mediaId === p.mediaId) || (p.carouselId && pub.carouselId === p.carouselId));
+                  }).length;
+                  const accResolved = accPub.length + accUnrecCount;
+                  const dynamicRate = accResolved > 0 ? (accPub.length / accResolved) * 100 : acc.successRate;
+
+                  return (
+                    <tr key={acc.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                            <Image
+                              src={acc.profilePicture}
+                              alt={acc.username}
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                              unoptimized
+                            />
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900">@{acc.username}</div>
+                            <div className="text-[11px] text-slate-400">{acc.name}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-bold text-slate-900">@{acc.username}</div>
-                          <div className="text-[11px] text-slate-400">{acc.name}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-right font-semibold text-slate-800">
-                      {formatNumber(acc.followers)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-semibold text-slate-800">
-                      {acc.postsToday}
-                    </td>
-                    <td className="py-3 px-4 text-right font-semibold text-indigo-600">
-                      {acc.postsInQueue}
-                    </td>
-                    <td className="py-3 px-4 text-right font-semibold text-emerald-600">
-                      {acc.successRate != null ? `${acc.successRate.toFixed(1)}%` : "—"}
-                    </td>
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-800">
+                        {formatNumber(acc.followers)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-800">
+                        {accTodayCount}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-indigo-600">
+                        {accInQueueCount}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-emerald-600">
+                        {dynamicRate != null ? `${dynamicRate.toFixed(1).replace(".", ",")}%` : "—"}
+                      </td>
                     <td className="py-3 px-4 text-center">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -467,7 +492,8 @@ export default function DashboardPage() {
                       </Link>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>

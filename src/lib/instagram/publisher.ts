@@ -422,7 +422,18 @@ export async function publishScheduledPost(postId: string): Promise<PublishResul
         .eq("id", post.queue_item_id);
     }
 
-    // 11. Se vinculado a fila, verifica se a fila foi totalmente finalizada
+    // 10.1 Atualização de fila de carrossel se vinculado
+    if (post.carousel_queue_item_id) {
+      await supabaseAdmin
+        .from("carousel_queue_items")
+        .update({
+          status: "published",
+          updated_at: nowIso,
+        })
+        .eq("id", post.carousel_queue_item_id);
+    }
+
+    // 11. Se vinculado a fila de reels, verifica se a fila foi totalmente finalizada
     if (post.queue_id) {
       const { data: allQueueItems } = await supabaseAdmin
         .from("reel_queue_items")
@@ -442,6 +453,30 @@ export async function publishScheduledPost(postId: string): Promise<PublishResul
               updated_at: nowIso,
             })
             .eq("id", post.queue_id);
+        }
+      }
+    }
+
+    // 11.1 Se vinculado a fila de carrosséis, verifica se a fila foi totalmente finalizada
+    if (post.carousel_queue_id) {
+      const { data: allCarouselItems } = await supabaseAdmin
+        .from("carousel_queue_items")
+        .select("id, status")
+        .eq("queue_id", post.carousel_queue_id);
+
+      if (allCarouselItems && allCarouselItems.length > 0) {
+        const remainingNonFinal = allCarouselItems.filter((it: any) =>
+          ["pending", "scheduled", "processing"].includes(it.status)
+        );
+
+        if (remainingNonFinal.length === 0) {
+          await supabaseAdmin
+            .from("carousel_queues")
+            .update({
+              status: "completed",
+              updated_at: nowIso,
+            })
+            .eq("id", post.carousel_queue_id);
         }
       }
     }
@@ -563,7 +598,17 @@ export async function publishScheduledPost(postId: string): Promise<PublishResul
         .eq("id", post.queue_item_id);
     }
 
-    // Se vinculado a fila, verifica se a fila terminou mesmo com esta falha
+    if (post.carousel_queue_item_id) {
+      await supabaseAdmin
+        .from("carousel_queue_items")
+        .update({
+          status: "failed",
+          updated_at: nowIso,
+        })
+        .eq("id", post.carousel_queue_item_id);
+    }
+
+    // Se vinculado a fila de reels, verifica se a fila terminou mesmo com esta falha
     if (post.queue_id) {
       const { data: allQueueItems } = await supabaseAdmin
         .from("reel_queue_items")
@@ -583,6 +628,30 @@ export async function publishScheduledPost(postId: string): Promise<PublishResul
               updated_at: nowIso,
             })
             .eq("id", post.queue_id);
+        }
+      }
+    }
+
+    // Se vinculado a fila de carrosséis, verifica se a fila terminou mesmo com esta falha
+    if (post.carousel_queue_id) {
+      const { data: allCarouselItems } = await supabaseAdmin
+        .from("carousel_queue_items")
+        .select("id, status")
+        .eq("queue_id", post.carousel_queue_id);
+
+      if (allCarouselItems && allCarouselItems.length > 0) {
+        const remainingNonFinal = allCarouselItems.filter((it: any) =>
+          ["pending", "scheduled", "processing"].includes(it.status)
+        );
+
+        if (remainingNonFinal.length === 0) {
+          await supabaseAdmin
+            .from("carousel_queues")
+            .update({
+              status: "completed",
+              updated_at: nowIso,
+            })
+            .eq("id", post.carousel_queue_id);
         }
       }
     }

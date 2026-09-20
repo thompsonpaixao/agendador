@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/carousels/queue
  * 
- * Cria uma fila de carrosséis: agenda múltiplos carrosséis sequencialmente
- * (1 carrossel = 1 slot de publicação) no fuso de São Paulo.
+ * Cria uma fila de carrosséis como entidade própria persistida em public.carousel_queues
+ * e itens em public.carousel_queue_items, gerando os respectivos agendamentos em public.scheduled_posts.
  */
 export async function POST(request: Request) {
   try {
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       accountId,
+      queueName,
       carouselIds,
       startDate,
       dailyTimes,
@@ -79,10 +80,11 @@ export async function POST(request: Request) {
       .filter(Boolean) as { id: string; title: string; caption: string; status: string }[];
 
     // 3. Calcula horários sequenciais
+    const activeTimes = Array.isArray(dailyTimes) && dailyTimes.length > 0 ? dailyTimes : ["18:00"];
     const slots = calculateScheduleSlots({
       itemsCount: orderedCarousels.length,
       startDateStr: startDate || getSaoPauloDateString(),
-      dailyTimes: Array.isArray(dailyTimes) && dailyTimes.length > 0 ? dailyTimes : ["18:00"],
+      dailyTimes: activeTimes,
       useRandomVariation,
       randomVariationMinutes,
     });
@@ -94,16 +96,72 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Insere em scheduled_posts e atualiza carousels
-    const scheduledPostsToInsert = orderedCarousels.map((c, idx) => ({
+    const name = queueName?.trim() || `Fila de Carrosséis - ${new Date().toLocaleDateString("pt-BR")}`;
+
+    // 4. Cria a entidade de Fila em public.carousel_queues
+    const { data: createdQueue, error: queueError } = await client
+      .from("carousel_queues")
+      .insert({
+        user_id: user.id,
+        instagram_account_id: accountId,
+        name,
+        status: "active",
+        posts_per_day: activeTimes.length,
+        daily_times: activeTimes,
+        use_random_variation: useRandomVariation,
+        random_variation_minutes: randomVariationMinutes,
+        start_date: startDate || getSaoPauloDateString(),
+      })
+      .select()
+      .single();
+
+    if (queueError || !createdQueue) {
+      console.error("[Carousels Queue POST] Erro ao criar fila em carousel_queues:", queueError);
+      return NextResponse.json(
+        { success: false, message: `Erro ao criar fila de carrosséis: ${queueError?.message}` },
+        { status: 500 }
+      );
+    }
+
+    // 5. Insere itens da fila em public.carousel_queue_items
+    const queueItemsToInsert = orderedCarousels.map((c, idx) => ({
       user_id: user.id,
-      instagram_account_id: accountId,
-      post_type: "carousel",
+      queue_id: createdQueue.id,
       carousel_id: c.id,
-      caption: c.caption || "",
-      scheduled_at: slots[idx],
+      position: idx + 1,
       status: "scheduled",
     }));
+
+    const { data: createdItems, error: itemsError } = await client
+      .from("carousel_queue_items")
+      .insert(queueItemsToInsert)
+      .select();
+
+    if (itemsError || !createdItems) {
+      console.error("[Carousels Queue POST] Erro ao criar itens em carousel_queue_items:", itemsError);
+      // Rollback da fila
+      await client.from("carousel_queues").delete().eq("id", createdQueue.id);
+      return NextResponse.json(
+        { success: false, message: `Erro ao criar itens da fila: ${itemsError?.message}` },
+        { status: 500 }
+      );
+    }
+
+    // 6. Insere em scheduled_posts com vínculo de carousel_queue_id e carousel_queue_item_id
+    const scheduledPostsToInsert = orderedCarousels.map((c, idx) => {
+      const itemRecord = createdItems[idx];
+      return {
+        user_id: user.id,
+        instagram_account_id: accountId,
+        post_type: "carousel",
+        carousel_id: c.id,
+        carousel_queue_id: createdQueue.id,
+        carousel_queue_item_id: itemRecord ? itemRecord.id : null,
+        caption: c.caption || "",
+        scheduled_at: slots[idx],
+        status: "scheduled",
+      };
+    });
 
     const { error: insertError } = await client
       .from("scheduled_posts")
@@ -111,13 +169,16 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error("[Carousels Queue POST] Erro ao agendar posts:", insertError);
+      // Rollback
+      await client.from("carousel_queue_items").delete().eq("queue_id", createdQueue.id);
+      await client.from("carousel_queues").delete().eq("id", createdQueue.id);
       return NextResponse.json(
         { success: false, message: `Erro ao agendar carrosséis: ${insertError.message}` },
         { status: 500 }
       );
     }
 
-    // Atualiza status dos carrosséis para "scheduled"
+    // 7. Atualiza status dos carrosséis para "scheduled"
     await client
       .from("carousels")
       .update({ status: "scheduled", updated_at: new Date().toISOString() })
@@ -126,7 +187,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `${orderedCarousels.length} carrossel(is) foram agendados com sucesso!`,
+      message: `${orderedCarousels.length} carrossel(is) foram agendados com sucesso na "${name}"!`,
+      queueId: createdQueue.id,
       scheduledCount: orderedCarousels.length,
       firstSlot: slots[0],
       lastSlot: slots[slots.length - 1],

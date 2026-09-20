@@ -108,6 +108,20 @@ export async function GET(request: Request) {
       } else if (row.category === "media" || row.category === "upload") {
         suggestedAction = "check_media";
       }
+      let postTitle = post?.caption ? post.caption.substring(0, 40) + "..." : "Reel Agendado";
+      if (row.category === "upload") {
+        try {
+          const parsed = JSON.parse(row.technical_details || "{}");
+          if (parsed.fileName) {
+            const sizeMb = parsed.sizeBytes ? ` (${(parsed.sizeBytes / (1024 * 1024)).toFixed(1)} MB)` : "";
+            postTitle = `${parsed.fileName}${sizeMb}`;
+          } else {
+            postTitle = "Arquivo de Mídia";
+          }
+        } catch {
+          postTitle = "Upload de Arquivo";
+        }
+      }
 
       return {
         id: row.id,
@@ -119,7 +133,7 @@ export async function GET(request: Request) {
         category,
         severity,
         postType: (post?.post_type === "carousel" ? "carousel" : "reel") as ErrorLog["postType"],
-        postTitle: post?.caption ? post.caption.substring(0, 40) + "..." : "Reel Agendado",
+        postTitle,
         errorCode: row.error_code || "UNKNOWN_ERROR",
         errorMessage: row.message || "Erro não especificado",
         technicalDetails: row.technical_details || undefined,
@@ -134,6 +148,58 @@ export async function GET(request: Request) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";
     console.error("[Errors API] Exceção:", message);
+    return NextResponse.json({ success: false, message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ success: false, message: "Não autenticado." }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      accountId,
+      category = "upload",
+      severity = "error",
+      errorCode = "UPLOAD_FAILED",
+      message = "Falha no upload de mídia",
+      technicalDetails,
+      scheduledPostId,
+    } = body;
+
+    const supabaseAdmin = createAdminClient();
+    const client = supabaseAdmin || supabase;
+
+    const { data: record, error } = await client
+      .from("error_logs")
+      .insert({
+        user_id: user.id,
+        instagram_account_id: accountId || null,
+        scheduled_post_id: scheduledPostId || null,
+        category,
+        severity,
+        error_code: errorCode,
+        message,
+        technical_details: typeof technicalDetails === "string" ? technicalDetails : JSON.stringify(technicalDetails || {}),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[Errors API POST] Erro ao inserir error_log:", error);
+      return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, error: record });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erro desconhecido";
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }

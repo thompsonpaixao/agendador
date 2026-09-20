@@ -73,6 +73,8 @@ interface AppStateContextType {
     action: "pause_all" | "resume_all" | "delete_all" | "delete_finished"
   ) => Promise<boolean>;
   refreshReelQueues: (accountId?: string) => Promise<void>;
+  refreshCarouselQueues: (accountId?: string) => Promise<void>;
+  deleteCarouselQueue: (queueId: string) => Promise<boolean>;
   refreshScheduledPosts: (accountId?: string) => Promise<void>;
   refreshPublishedPosts: (accountId?: string) => Promise<void>;
 
@@ -82,7 +84,8 @@ interface AppStateContextType {
   profileCarousels: CarouselPost[];
   refreshCarousels: (accountId?: string) => Promise<void>;
   addProfileMedia: (accountId: string, files: (MediaItem | Omit<MediaItem, "id" | "accountId">)[]) => void;
-  deleteProfileMedia: (accountId: string, mediaId: string) => void;
+  deleteProfileMedia: (accountId: string, mediaId: string, permanent?: boolean) => Promise<boolean>;
+  restoreProfileMedia: (accountId: string, mediaId: string) => Promise<boolean>;
   saveProfileCarousel: (
     accountId: string,
     carouselData: {
@@ -258,6 +261,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Sincronização de filas de Carrosséis reais do Supabase (/api/carousel-queues)
+  const refreshCarouselQueues = useCallback(async (accountId?: string) => {
+    try {
+      const url = accountId && accountId !== "all" ? `/api/carousel-queues?accountId=${accountId}` : "/api/carousel-queues";
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && Array.isArray(data.queues)) {
+        setCarouselQueues(data.queues);
+      }
+    } catch (err) {
+      console.warn("Aviso ao carregar filas de Carrosséis:", err);
+    }
+  }, []);
+
   // Sincronização de agendamentos reais do Supabase
   const refreshScheduledPosts = useCallback(async (accountId?: string) => {
     try {
@@ -309,6 +327,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     void refreshMedia(selectedAccountId);
     void refreshCarousels(selectedAccountId);
     void refreshReelQueues(selectedAccountId);
+    void refreshCarouselQueues(selectedAccountId);
     void refreshScheduledPosts(selectedAccountId);
     void refreshPublishedPosts(selectedAccountId);
     void refreshErrors(selectedAccountId);
@@ -336,7 +355,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       console.warn("Erro ao buscar contas conectadas:", err);
       setDbStatus("error");
     }
-  }, [refreshStorageStatus, refreshMedia, refreshCarousels, refreshReelQueues, refreshScheduledPosts, refreshPublishedPosts, refreshErrors, selectedAccountId]);
+  }, [refreshStorageStatus, refreshMedia, refreshCarousels, refreshReelQueues, refreshCarouselQueues, refreshScheduledPosts, refreshPublishedPosts, refreshErrors, selectedAccountId]);
 
   useEffect(() => {
     let ignore = false;
@@ -787,18 +806,88 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } else {
+      const currentQueue = carouselQueues.find((q) => q.id === queueId);
+      const targetStatus = currentQueue?.status === "paused" ? "active" : "paused";
+
       setCarouselQueues((prev) =>
         prev.map((q) =>
-          q.id === queueId
-            ? { ...q, status: q.status === "paused" ? "active" : "paused" }
-            : q
+          q.id === queueId ? { ...q, status: targetStatus } : q
         )
       );
+
+      try {
+        const res = await fetch(`/api/carousel-queues/${queueId}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: targetStatus }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setCarouselQueues((prev) =>
+            prev.map((q) =>
+              q.id === queueId ? { ...q, status: currentQueue?.status || "active" } : q
+            )
+          );
+          addToast({
+            type: "error",
+            title: "Erro ao Atualizar Fila",
+            message: data.message || "Não foi possível atualizar o status no banco.",
+          });
+          return;
+        }
+
+        void refreshScheduledPosts(selectedAccountId);
+        addToast({
+          type: "info",
+          title: targetStatus === "paused" ? "Fila de Carrosséis Pausada" : "Fila de Carrosséis Reativada",
+          message: targetStatus === "paused"
+            ? "A fila de carrosséis foi pausada no banco."
+            : "A fila de carrosséis foi reativada no banco.",
+        });
+      } catch {
+        setCarouselQueues((prev) =>
+          prev.map((q) =>
+            q.id === queueId ? { ...q, status: currentQueue?.status || "active" } : q
+          )
+        );
+        addToast({
+          type: "error",
+          title: "Erro de Conexão",
+          message: "Falha ao sincronizar alteração de status com o servidor.",
+        });
+      }
+    }
+  };
+
+  const deleteCarouselQueue = async (queueId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/carousel-queues/${queueId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCarouselQueues((prev) => prev.filter((q) => q.id !== queueId));
+        void refreshScheduledPosts(selectedAccountId);
+        void refreshCarousels(selectedAccountId);
+        addToast({
+          type: "success",
+          title: "Fila de Carrosséis Excluída",
+          message: data.message || "Fila removida com sucesso.",
+        });
+        return true;
+      } else {
+        addToast({
+          type: "error",
+          title: "Falha ao Excluir Fila",
+          message: data.message || "Não foi possível excluir a fila de carrosséis.",
+        });
+        return false;
+      }
+    } catch {
       addToast({
-        type: "info",
-        title: "Status da Fila Alterado",
-        message: "A programação da fila foi atualizada.",
+        type: "error",
+        title: "Erro de Conexão",
+        message: "Falha ao conectar com o servidor.",
       });
+      return false;
     }
   };
 
@@ -903,9 +992,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     void refreshStorageUsage();
   };
 
-  const deleteProfileMedia = async (accountId: string, mediaId: string) => {
+  const deleteProfileMedia = async (accountId: string, mediaId: string, permanent: boolean = false): Promise<boolean> => {
     try {
-      const res = await fetch(`/api/media/${mediaId}`, { method: "DELETE" });
+      const url = permanent ? `/api/media/${mediaId}?permanent=true` : `/api/media/${mediaId}`;
+      const res = await fetch(url, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok || !data.success) {
         addToast({
@@ -913,7 +1003,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           title: "Não foi possível excluir",
           message: data.message || "Erro ao excluir mídia.",
         });
-        return;
+        return false;
       }
       setProfileMedia((prev) => prev.filter((m) => m.id !== mediaId));
       setAccounts((prev) =>
@@ -925,16 +1015,48 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       );
       void refreshStorageUsage();
       addToast({
-        type: "info",
-        title: "Vídeo Removido",
-        message: data.message || "O vídeo foi excluído do repositório da conta.",
+        type: permanent ? "info" : "success",
+        title: permanent ? "Mídia Excluída Permanentemente" : "Movida para a Lixeira",
+        message: data.message || (permanent ? "Arquivo excluído em definitivo." : "O arquivo foi movido para a Lixeira."),
       });
+      return true;
     } catch {
       addToast({
         type: "error",
         title: "Erro de Rede",
         message: "Falha de comunicação ao tentar remover a mídia.",
       });
+      return false;
+    }
+  };
+
+  const restoreProfileMedia = async (accountId: string, mediaId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/media/${mediaId}/restore`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        addToast({
+          type: "error",
+          title: "Erro ao Restaurar",
+          message: data.message || "Não foi possível restaurar o arquivo da Lixeira.",
+        });
+        return false;
+      }
+      void refreshMedia(accountId);
+      void refreshStorageUsage();
+      addToast({
+        type: "success",
+        title: "Arquivo Restaurado",
+        message: data.message || "O arquivo voltou para o repositório ativo com sucesso.",
+      });
+      return true;
+    } catch {
+      addToast({
+        type: "error",
+        title: "Erro de Rede",
+        message: "Falha ao conectar com o servidor para restaurar a mídia.",
+      });
+      return false;
     }
   };
 
@@ -1205,6 +1327,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         deleteReelQueue,
         bulkActionReelQueues,
         refreshReelQueues,
+        refreshCarouselQueues,
+        deleteCarouselQueue,
         refreshScheduledPosts,
         refreshPublishedPosts,
         profileMedia,
@@ -1216,6 +1340,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         scheduleCarousel,
         addProfileMedia,
         deleteProfileMedia,
+        restoreProfileMedia,
         addProfileCarousel,
         updateProfileCarousel,
         deleteProfileCarousel,

@@ -59,6 +59,7 @@ export function ProfileReelsTab({
     refreshAccounts,
     refreshScheduledPosts,
     refreshPublishedPosts,
+    refreshErrors,
   } = useAppState();
   const { addToast } = useToast();
 
@@ -185,6 +186,24 @@ export function ProfileReelsTab({
     }
   };
 
+  // Intercepta tentativas de fechar ou recarregar página enquanto houver uploads ativos
+  React.useEffect(() => {
+    const hasActiveUploads = uploadingItems.some(
+      (u) => u.status === "uploading" || u.status === "confirming"
+    );
+
+    if (!hasActiveUploads) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Existem uploads em andamento. Se você sair ou atualizar a página, eles serão interrompidos.";
+      return e.returnValue;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [uploadingItems]);
+
   const executeRealUpload = async (item: UploadingItem) => {
     try {
       setUploadingItems((prev) =>
@@ -223,14 +242,37 @@ export function ProfileReelsTab({
         };
 
         xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
+          // HTTP 304 não é erro (resposta normal de cache)
+          if ((xhr.status >= 200 && xhr.status < 300) || xhr.status === 304) {
             resolve();
           } else {
-            reject(new Error(`Falha no upload do vídeo para o Storage (código ${xhr.status})`));
+            let detail = "";
+            try {
+              const resJson = JSON.parse(xhr.responseText);
+              detail = resJson.message || resJson.error || xhr.responseText;
+            } catch {
+              detail = xhr.responseText || "";
+            }
+
+            let reason = `Falha no upload (código ${xhr.status})`;
+            if (
+              xhr.status === 413 ||
+              detail.toLowerCase().includes("exceeded") ||
+              detail.toLowerCase().includes("payload too large") ||
+              detail.toLowerCase().includes("too large")
+            ) {
+              reason = `Arquivo (${formatBytes(item.sizeBytes)}) excede o limite permitido pelo armazenamento (50 MB)`;
+            } else if (xhr.status === 403) {
+              reason = "Acesso negado ou link de upload expirado";
+            } else if (detail) {
+              reason = detail.substring(0, 120);
+            }
+
+            reject(new Error(reason));
           }
         };
 
-        xhr.onerror = () => reject(new Error("Erro de rede durante o upload do vídeo."));
+        xhr.onerror = () => reject(new Error("Falha de conexão: upload interrompido pela rede"));
         xhr.send(item.file);
       });
 
@@ -293,6 +335,30 @@ export function ProfileReelsTab({
           u.id === item.id ? { ...u, status: "error", errorMessage: errorMsg } : u
         )
       );
+
+      // Registra erro de upload em error_logs para histórico técnico confiavel
+      void fetch("/api/errors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: account.id,
+          category: "upload",
+          errorCode: "UPLOAD_FAILED",
+          message: errorMsg,
+          technicalDetails: {
+            fileName: item.file.name,
+            fileSize: item.sizeBytes,
+            mimeType: item.file.type || "video/mp4",
+            durationSeconds: item.durationSeconds,
+            resolution: `${item.width}x${item.height}`,
+            target: item.target,
+            failedAt: new Date().toISOString(),
+          },
+        }),
+      }).then(() => {
+        void refreshErrors(account.id);
+      }).catch(() => {});
+
       addToast({
         type: "error",
         title: "Falha no Upload do Reel",
@@ -316,6 +382,14 @@ export function ProfileReelsTab({
     }
 
     for (const file of files) {
+      if (file.size > 50 * 1024 * 1024) {
+        addToast({
+          type: "warning",
+          title: "Arquivo Grande Detectado",
+          message: `O vídeo "${file.name}" possui ${(file.size / (1024 * 1024)).toFixed(1)} MB. O limite padrão de upload no armazenamento Supabase é de 50 MB. Caso o envio falhe, reduza a resolução para 720p.`,
+        });
+      }
+
       const tempId = `up_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const meta = await generateVideoMetadataAndThumbnail(file);
 
@@ -864,6 +938,34 @@ export function ProfileReelsTab({
                 )}
               </div>
 
+              {/* Resumo de Upload em Massa */}
+              {uploadingItems.length > 1 && (
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl flex flex-wrap items-center justify-between gap-2.5 text-xs text-indigo-950">
+                  <div className="flex items-center gap-2">
+                    <UploadCloud className="w-4 h-4 text-indigo-600 animate-pulse" />
+                    <span>
+                      <strong>{uploadingItems.length} arquivos selecionados:</strong>{" "}
+                      {uploadingItems.filter((u) => u.status === "uploading" || u.status === "confirming").length} enviando •{" "}
+                      <span className="text-emerald-700 font-bold">{uploadingItems.filter((u) => u.status === "success").length} concluídos</span>
+                      {uploadingItems.some((u) => u.status === "error") && (
+                        <strong className="text-rose-600 ml-1.5">
+                          • {uploadingItems.filter((u) => u.status === "error").length} com erro
+                        </strong>
+                      )}
+                    </span>
+                  </div>
+                  {uploadingItems.some((u) => u.status === "error") && (
+                    <button
+                      type="button"
+                      onClick={() => setUploadingItems((prev) => prev.filter((u) => u.status !== "error"))}
+                      className="text-xs text-slate-500 hover:text-slate-800 underline font-medium cursor-pointer"
+                    >
+                      Dispensar erros
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {/* 1. CARDS TEMPORÁRIOS DE UPLOAD EM ANDAMENTO */}
                 {uploadingItems.map((item) => (
@@ -875,6 +977,16 @@ export function ProfileReelsTab({
                         : "border-indigo-300 bg-indigo-50/10"
                     }`}
                   >
+                    {item.status === "error" && (
+                      <button
+                        type="button"
+                        onClick={() => setUploadingItems((prev) => prev.filter((u) => u.id !== item.id))}
+                        className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full bg-slate-900/80 hover:bg-rose-600 text-white flex items-center justify-center cursor-pointer transition-colors"
+                        title="Dispensar card"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                     <div className="relative aspect-[9/16] rounded-xl overflow-hidden bg-slate-900 mb-2">
                       {item.thumbnailUrl && (
                         <Image
@@ -887,19 +999,31 @@ export function ProfileReelsTab({
                       )}
                       <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/40">
                         {item.status === "error" ? (
-                          <div className="space-y-2">
-                            <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
-                            <span className="text-[11px] text-rose-200 font-medium block">
-                              Erro no upload
+                          <div className="space-y-1.5 w-full p-1 text-center">
+                            <AlertCircle className="w-5 h-5 text-rose-500 mx-auto" />
+                            <span className="text-[10px] text-rose-100 font-semibold block line-clamp-2" title={item.errorMessage}>
+                              {item.errorMessage || "Erro no upload"}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => executeRealUpload(item)}
-                              className="text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold py-1 px-2.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 mx-auto"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              <span>Tentar de novo</span>
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => executeRealUpload(item)}
+                                className="text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold py-1 px-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                                title="Tentar novamente"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>Tentar</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setUploadingItems((prev) => prev.filter((u) => u.id !== item.id))}
+                                className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 py-1 px-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                                title="Dispensar card"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Dispensar</span>
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <div className="space-y-2 w-full px-2">

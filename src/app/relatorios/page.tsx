@@ -49,9 +49,13 @@ export default function RelatoriosPage() {
   const totalReach = filteredPosts.reduce((acc, p) => acc + p.reach, 0);
   const totalViews = filteredPosts.reduce((acc, p) => acc + p.views, 0);
 
-  const successRate = totalPublished + filteredErrors.length > 0
-    ? (totalPublished / (totalPublished + filteredErrors.length)) * 100
-    : 100;
+  const unrecoveredErrors = filteredErrors.filter(
+    (e) => !filteredPosts.some((p) => (e.mediaId && p.mediaId === e.mediaId) || (e.carouselId && p.carouselId === e.carouselId))
+  );
+  const totalResolved = totalPublished + unrecoveredErrors.length;
+  const successRate = totalResolved > 0
+    ? (totalPublished / totalResolved) * 100
+    : null;
 
   // Destaques Reais dos Últimos 30 Dias
   const bestReel = [...filteredPosts]
@@ -150,7 +154,7 @@ export default function RelatoriosPage() {
             Taxa de Sucesso
           </div>
           <div className="text-xl font-bold text-slate-900 mt-1">
-            {totalPublished > 0 ? `${successRate.toFixed(1)}%` : "—"}
+            {successRate != null ? `${successRate.toFixed(1).replace(".", ",")}%` : "—"}
           </div>
           <div className="text-[11px] text-slate-400 mt-0.5">Disparos sem erro</div>
         </div>

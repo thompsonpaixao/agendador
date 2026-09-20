@@ -171,13 +171,16 @@ export interface CarouselQueue {
   remainingCount: number;
   errorCount: number;
   nextScheduledAt?: string;
-  status: "active" | "paused" | "completed";
-  carousels: CarouselPost[];
-  captionMode: "profile_default" | "custom_all" | "individual" | "none";
+  estimatedFinishAt?: string;
+  status: "active" | "paused" | "completed" | "completed_with_errors" | "cancelled";
+  carousels?: CarouselPost[];
+  items?: any[];
+  captionMode?: "profile_default" | "custom_all" | "individual" | "none";
   customCaption?: string;
   postsPerDay: number;
   dailyTimes: string[];
   startDate: string;
+  useRandomVariation?: boolean;
 }
 
 export interface PostHistoryLog {
@@ -197,6 +200,8 @@ export interface ScheduledPost {
   caption: string;
   scheduledAt: string;
   thumbnailUrl: string;
+  mediaId?: string;
+  carouselId?: string;
   mediaUrl?: string;
   slidesCount?: number;
   status: PostStatus;
@@ -211,7 +216,10 @@ export interface PublishedPost {
   accountUsername: string;
   accountAvatar: string;
   type: PostType;
+  title?: string;
   thumbnailUrl: string;
+  mediaId?: string;
+  carouselId?: string;
   mediaUrl?: string;
   caption: string;
   publishedAt: string;
@@ -231,7 +239,7 @@ export interface PublishedPost {
 }
 
 export type ErrorSeverity = "critical" | "warning" | "resolved";
-export type ErrorCategory = "account" | "token" | "publish" | "media" | "api";
+export type ErrorCategory = "account" | "token" | "publish" | "media" | "api" | "upload";
 
 export interface ErrorLog {
   id: string;
@@ -244,6 +252,8 @@ export interface ErrorLog {
   severity: ErrorSeverity;
   postType?: PostType;
   postTitle?: string;
+  mediaId?: string;
+  carouselId?: string;
   mediaUrl?: string;
   errorCode: string;
   errorMessage: string;
